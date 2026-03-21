@@ -33,7 +33,13 @@ pip install akshare pandas schedule
 
 ## 使用方法
 
-### 运行分析
+### 快速运行
+
+```bash
+./run.sh
+```
+
+### 手动运行
 
 ```bash
 source .venv/bin/activate
