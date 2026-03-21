@@ -33,10 +33,10 @@ env/
 *.swo
 *~
 
-# Reports (optional, uncomment if you don't want to track reports)
-# yupen/reports/*.html
-# yupen/reports/*.json
-# yupen/reports/*.md
+# Reports
+yupen/reports/*.html
+yupen/reports/*.json
+yupen/reports/*.md
 
 # Logs
 *.log
