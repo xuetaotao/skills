@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鱼盆模型分析报告 - 2026-03-21</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header .subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.2em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header .data-info {
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .header .separator {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .header .refresh-info {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-card .trend {
+            font-size: 0.9em;
+            margin-top: 10px;
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        .trend.up {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .trend.down {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .trend.neutral {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .index-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .index-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .index-table th {
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .index-table td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .index-table tbody tr {
+            transition: background 0.2s;
+        }
+
+        .index-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .index-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-yes {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .status-no {
+            background: #ffebee;
+            color: #c62828;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .deviation {
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .deviation.positive {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .deviation.negative {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .deviation.neutral {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .rank-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .action-buy {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .action-sell {
+            background: #ffebee;
+            color: #c62828;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .action-hold {
+            background: #fff3e0;
+            color: #ef6c00;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .source-tag {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .date-tag {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .data-failed-row {
+            background: #ffebee !important;
+            opacity: 0.7;
+        }
+
+        .data-error {
+            background: #ffcdd2;
+            color: #c62828;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .signal-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            margin: 5px;
+        }
+
+        .signal-strong-buy {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .signal-buy {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+            color: white;
+        }
+
+        .signal-watch {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .signal-cautious {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .signal-sell {
+            background: linear-gradient(135deg, #c31432 0%, #240b36 100%);
+            color: white;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .detail-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .detail-card h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-item .label {
+            color: #666;
+        }
+
+        .detail-item .value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9em;
+        }
+
+        .warning {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ffc107 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .warning h4 {
+            margin-bottom: 10px;
+        }
+
+        .warning ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .warning li {
+            padding: 5px 0;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .highlight-box h3 {
+            margin-bottom: 10px;
+        }
+
+        .yes-count {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        .no-count {
+            color: #c62828;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐟 鱼盆模型量化分析报告</h1>
+            <div class="subtitle">
+                <span class="data-info">📅 数据日期: 2026-03-20</span>
+                <span class="separator">|</span>
+                <span class="refresh-info">🕐 刷新时间: 2026年03月21日 23:48:42</span>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">整体趋势</div>
+                <div class="value">弱势下跌</div>
+                <div class="trend down">
+                    悲观
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="label">YES 指数</div>
+                <div class="value yes-count">2</div>
+                <div class="trend up">线上持有</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">NO 指数</div>
+                <div class="value no-count">8</div>
+                <div class="trend down">线下观望</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">最强指数</div>
+                <div class="value" style="font-size: 1.5em;">创业板指</div>
+                <div class="trend up">1.82%</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">📈 趋势强度排名</h2>
+            <table class="index-table">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>指数名称</th>
+                        <th>代码</th>
+                        <th>现价</th>
+                        <th>临界值(MA20)</th>
+                        <th>状态</th>
+                        <th>偏离度</th>
+                        <th>状态转变时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                <tr>
+                    <td><span class="rank-badge rank-1">1</span></td>
+                    <td><strong>创业板指</strong></td>
+                    <td><code>399006</code></td>
+                    <td><strong>3352.10</strong></td>
+                    <td>3292.26</td>
+                    <td><span class="status-yes">✅ YES</span></td>
+                    <td><span class="deviation positive">+1.82%</span></td>
+                    <td>2026-03-18</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge rank-2">2</span></td>
+                    <td><strong>双创50</strong></td>
+                    <td><code>931643</code></td>
+                    <td><strong>2034.07</strong></td>
+                    <td>2018.94</td>
+                    <td><span class="status-yes">✅ YES</span></td>
+                    <td><span class="deviation positive">+0.75%</span></td>
+                    <td>2026-03-20</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge rank-3">3</span></td>
+                    <td><strong>沪深300</strong></td>
+                    <td><code>000300</code></td>
+                    <td><strong>4567.02</strong></td>
+                    <td>4665.28</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-2.11%</span></td>
+                    <td>2026-03-13</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge">4</span></td>
+                    <td><strong>中证A500</strong></td>
+                    <td><code>000510</code></td>
+                    <td><strong>5659.05</strong></td>
+                    <td>5852.92</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-3.31%</span></td>
+                    <td>2026-03-13</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge">5</span></td>
+                    <td><strong>上证50</strong></td>
+                    <td><code>000016</code></td>
+                    <td><strong>2883.86</strong></td>
+                    <td>2987.95</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-3.48%</span></td>
+                    <td>2026-02-13</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge">6</span></td>
+                    <td><strong>上证指数</strong></td>
+                    <td><code>000001</code></td>
+                    <td><strong>3957.05</strong></td>
+                    <td>4100.79</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-3.51%</span></td>
+                    <td>2026-03-13</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge">7</span></td>
+                    <td><strong>中证1000</strong></td>
+                    <td><code>000852</code></td>
+                    <td><strong>7783.44</strong></td>
+                    <td>8230.22</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-5.43%</span></td>
+                    <td>2026-03-13</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge">8</span></td>
+                    <td><strong>中证2000</strong></td>
+                    <td><code>932000</code></td>
+                    <td><strong>3273.54</strong></td>
+                    <td>3490.75</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-6.22%</span></td>
+                    <td>2026-03-13</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge">9</span></td>
+                    <td><strong>科创50</strong></td>
+                    <td><code>000688</code></td>
+                    <td><strong>1318.31</strong></td>
+                    <td>1408.79</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-6.42%</span></td>
+                    <td>2026-03-02</td>
+                </tr>
+            
+
+                <tr>
+                    <td><span class="rank-badge">10</span></td>
+                    <td><strong>中证500</strong></td>
+                    <td><code>000905</code></td>
+                    <td><strong>7760.04</strong></td>
+                    <td>8296.06</td>
+                    <td><span class="status-no">❌ NO</span></td>
+                    <td><span class="deviation negative">-6.46%</span></td>
+                    <td>2026-03-12</td>
+                </tr>
+            
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">💡 操作建议</h2>
+            <div class="highlight-box">
+                <h3>市场综合分析</h3>
+                <p>当前市场 <span class="yes-count">2</span> 个指数在20日线上，
+                   <span class="no-count">8</span> 个指数在20日线下。</p>
+                <p style="margin-top: 10px;">平均偏离度：<strong>-3.44%</strong></p>
+            </div>
+            <h3 style="margin: 20px 0 15px 0;">强势指数（可关注）</h3>
+            
+                <div class="signal-tag signal-buy">
+                    创业板指 <span style="opacity:0.8">(+1.82%)</span>
+                </div>
+            
+
+                <div class="signal-tag signal-buy">
+                    双创50 <span style="opacity:0.8">(+0.75%)</span>
+                </div>
+            
+
+            <h3 style="margin: 20px 0 15px 0;">弱势指数（需谨慎）</h3>
+            
+                <div class="signal-tag signal-sell">
+                    沪深300 <span style="opacity:0.8">(-2.11%)</span>
+                </div>
+            
+
+                <div class="signal-tag signal-sell">
+                    中证A500 <span style="opacity:0.8">(-3.31%)</span>
+                </div>
+            
+
+                <div class="signal-tag signal-sell">
+                    上证50 <span style="opacity:0.8">(-3.48%)</span>
+                </div>
+            <p style="margin-top:10px;color:#666;font-size:0.9em;">等8个指数</p>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">🔍 各指数详细数据</h2>
+            <div class="detail-grid">
+                
+                <div class="detail-card">
+                    <h4>上证指数 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">000001</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">3957.05</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">4100.79</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-3.51%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>上证50 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">000016</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">2883.86</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">2987.95</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-3.48%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>沪深300 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">000300</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">4567.02</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">4665.28</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-2.11%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>中证A500 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">000510</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">5659.05</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">5852.92</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-3.31%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>中证500 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">000905</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">7760.04</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">8296.06</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-6.46%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>中证1000 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">000852</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">7783.44</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">8230.22</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-5.43%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>中证2000 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">932000</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">3273.54</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">3490.75</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-6.22%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">中证CSIndex</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>创业板指 <span class="✅">YES</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">399006</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">3352.10</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">3292.26</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation positive">1.82%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">持有为主，可适当加仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>科创50 <span class="❌">NO</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">000688</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">1318.31</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">1408.79</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation negative">-6.42%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">及时止损或减仓</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">新浪财经</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+
+                <div class="detail-card">
+                    <h4>双创50 <span class="✅">YES</span></h4>
+                    <div class="detail-item">
+                        <span class="label">代码</span>
+                        <span class="value">931643</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">当前价格</span>
+                        <span class="value">2034.07</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">MA20</span>
+                        <span class="value">2018.94</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">偏离度</span>
+                        <span class="value deviation positive">0.75%</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">详细建议</span>
+                        <span class="value">谨慎持有，等待明确信号</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据源</span>
+                        <span class="source-tag">中证CSIndex</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">数据日期</span>
+                        <span class="date-tag">2026-03-20</span>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">⚠️ 风险提示</h2>
+            <div class="warning">
+                <h4>⚠️ 重要提醒</h4>
+                <ul>
+                    <li>• 鱼盆模型适用于趋势市，震荡行情中可能出现频繁假信号</li>
+                    <li>• 模型胜率约20-30%，靠的是赚大赔小的策略</li>
+                    <li>• 本报告仅供参考，不构成投资建议</li>
+                    <li>• 请结合自身风险承受能力做出投资决策</li>
+                    <li>• 投资有风险，入市需谨慎</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>报告生成时间: 2026-03-21 23:48:42</p>
+            <p>鱼盆模型量化分析系统 | 基于20日均线趋势跟踪策略</p>
+        </div>
+    </div>
+</body>
+</html>
