@@ -548,6 +548,33 @@ class ReportAgent(BaseAgent):
             font-weight: bold;
             text-shadow: 0 0 10px rgba(255, 138, 128, 0.5);
         }}
+
+        .status-changed-row {{
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
+            animation: pulse-highlight 2s ease-in-out infinite;
+        }}
+
+        @keyframes pulse-highlight {{
+            0%, 100% {{ box-shadow: inset 0 0 0 2px #ff9800; }}
+            50% {{ box-shadow: inset 0 0 0 4px #ff9800; }}
+        }}
+
+        .status-change-badge {{
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: white;
+            font-size: 0.75em;
+            border-radius: 10px;
+            font-weight: bold;
+            animation: badge-blink 1.5s ease-in-out infinite;
+        }}
+
+        @keyframes badge-blink {{
+            0%, 100% {{ opacity: 1; }}
+            50% {{ opacity: 0.6; }}
+        }}
     </style>
 </head>
 <body>
@@ -602,7 +629,7 @@ class ReportAgent(BaseAgent):
                     </tr>
                 </thead>
                 <tbody>
-                    {self._generate_table_rows(ranked_signals, signals, analyzed_data)}
+                    {self._generate_table_rows(ranked_signals, signals, analyzed_data, summary)}
                 </tbody>
             </table>
         </div>
@@ -654,8 +681,9 @@ class ReportAgent(BaseAgent):
 
         return html_template
 
-    def _generate_table_rows(self, ranked_signals: List, signals: Dict, analyzed_data: Dict) -> str:
+    def _generate_table_rows(self, ranked_signals: List, signals: Dict, analyzed_data: Dict, summary: Dict) -> str:
         rows = []
+        数据日期 = summary.get('数据日期', datetime.now().strftime('%Y-%m-%d'))
         for item in ranked_signals:
             name = item['指数名称']
             signal = signals.get(name, {})
@@ -714,10 +742,14 @@ class ReportAgent(BaseAgent):
             elif hasattr(状态转变时间, 'strftime'):
                 状态转变时间 = 状态转变时间.strftime('%Y-%m-%d')
 
+            is_status_changed_today = (状态转变时间 == 数据日期)
+            row_class = 'status-changed-row' if is_status_changed_today else ''
+            changed_badge = '<span class="status-change-badge">⚡ 今日转变</span>' if is_status_changed_today else ''
+
             rows.append(f"""
-                <tr>
+                <tr class="{row_class}">
                     <td><span class="{rank_class}">{item['趋势强度排名']}</span></td>
-                    <td><strong>{name}</strong></td>
+                    <td><strong>{name}</strong>{changed_badge}</td>
                     <td><code>{代码}</code></td>
                     <td><strong>{现价:.2f}</strong></td>
                     <td>{MA20:.2f}</td>
