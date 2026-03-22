@@ -53,6 +53,11 @@ class DataAnalyzerAgent(BaseAgent):
             analysis["数据源"] = index_data.get("数据源", "未知")
             analysis["数据日期"] = index_data.get("数据日期", "N/A")
             analysis["采集时间"] = index_data.get("采集时间", "N/A")
+            
+            if index_data.get("PE"):
+                analysis["PE"] = index_data.get("PE")
+                analysis["PE百分位"] = index_data.get("PE百分位")
+                analysis["PE日期"] = index_data.get("PE日期")
 
             analyzed_results[index_name] = analysis
 

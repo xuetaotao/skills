@@ -575,6 +575,16 @@ class ReportAgent(BaseAgent):
             0%, 100% {{ opacity: 1; }}
             50% {{ opacity: 0.6; }}
         }}
+
+        .pe-low {{
+            color: #2e7d32;
+            font-weight: bold;
+        }}
+
+        .pe-high {{
+            color: #c62828;
+            font-weight: bold;
+        }}
     </style>
 </head>
 <body>
@@ -625,6 +635,7 @@ class ReportAgent(BaseAgent):
                         <th>临界值(MA20)</th>
                         <th>状态</th>
                         <th>偏离度</th>
+                        <th>PE百分位</th>
                         <th>状态转变时间</th>
                     </tr>
                 </thead>
@@ -735,6 +746,19 @@ class ReportAgent(BaseAgent):
             MA20 = analysis.get('MA20', 0) or 0
             代码 = analysis.get('code', 'N/A')
             状态转变时间 = analysis.get('状态开始日期', '') or ''
+            
+            PE百分位 = analysis.get('PE百分位')
+            if PE百分位 is not None:
+                if PE百分位 < 30:
+                    pe_class = 'pe-low'
+                    pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
+                elif PE百分位 > 70:
+                    pe_class = 'pe-high'
+                    pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
+                else:
+                    pe_str = f'{PE百分位:.1f}%'
+            else:
+                pe_str = '--'
 
             if isinstance(状态转变时间, str):
                 if 'T' in 状态转变时间:
@@ -755,6 +779,7 @@ class ReportAgent(BaseAgent):
                     <td>{MA20:.2f}</td>
                     <td><span class="{status_class}">{status_text}</span></td>
                     <td><span class="deviation {deviation_class}">{deviation_str}</span></td>
+                    <td>{pe_str}</td>
                     <td>{状态转变时间}</td>
                 </tr>
             """)

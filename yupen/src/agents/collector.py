@@ -9,10 +9,87 @@ import numpy as np
 from datetime import datetime, timedelta
 import logging
 import os
+import akshare as ak
+
+import requests
 
 from .base import BaseAgent
+from config import PE_INDEX_MAP
 
 logger = logging.getLogger(__name__)
+
+_DANJUAN_PE_CACHE = None
+_DANJUAN_PE_CACHE_TIME = None
+
+def _fetch_danjuan_pe_data() -> Optional[Dict[str, Dict]]:
+    global _DANJUAN_PE_CACHE, _DANJUAN_PE_CACHE_TIME
+    
+    now = datetime.now()
+    if _DANJUAN_PE_CACHE and _DANJUAN_PE_CACHE_TIME:
+        if (now - _DANJUAN_PE_CACHE_TIME).total_seconds() < 3600:
+            return _DANJUAN_PE_CACHE
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        }
+        url = 'https://danjuanapp.com/djapi/index_eva/dj'
+        resp = requests.get(url, headers=headers, timeout=10)
+        data = resp.json()
+        
+        result = {}
+        for item in data['data']['items']:
+            name = item.get('name', '')
+            pe = item.get('pe', 0)
+            pe_percentile = item.get('pe_percentile', 0)
+            pb = item.get('pb', 0)
+            pb_percentile = item.get('pb_percentile', 0)
+            
+            if pe_percentile <= 1:
+                pe_percentile = pe_percentile * 100
+            if pb_percentile <= 1:
+                pb_percentile = pb_percentile * 100
+            
+            result[name] = {
+                'PE': round(pe, 2) if pe else None,
+                'PE百分位': round(pe_percentile, 2) if pe_percentile else None,
+                'PB': round(pb, 2) if pb else None,
+                'PB百分位': round(pb_percentile, 2) if pb_percentile else None,
+            }
+        
+        _DANJUAN_PE_CACHE = result
+        _DANJUAN_PE_CACHE_TIME = now
+        return result
+    except Exception as e:
+        logger.warning(f"获取蛋卷基金PE数据失败: {e}")
+        return None
+
+
+def fetch_pe_percentile(index_name: str) -> Optional[Dict[str, Any]]:
+    if index_name not in PE_INDEX_MAP:
+        return None
+    
+    danjuan_name = PE_INDEX_MAP[index_name]
+    
+    pe_data = _fetch_danjuan_pe_data()
+    if not pe_data:
+        return None
+    
+    if danjuan_name not in pe_data:
+        logger.warning(f"蛋卷基金没有 {danjuan_name} 的PE数据")
+        return None
+    
+    result = pe_data[danjuan_name]
+    if result.get('PE') is None:
+        return None
+    
+    return {
+        "PE": result['PE'],
+        "PE百分位": result['PE百分位'],
+        "PB": result.get('PB'),
+        "PB百分位": result.get('PB百分位'),
+        "PE日期": datetime.now().strftime("%Y-%m-%d")
+    }
 
 
 class DataSourceManager:
@@ -278,6 +355,13 @@ class DataCollectorAgent(BaseAgent):
                     "数据日期": result.get('数据日期', 'N/A'),
                     "采集时间": result.get('采集时间', 'N/A')
                 }
+                
+                pe_data = fetch_pe_percentile(name)
+                if pe_data:
+                    all_data[name]["PE"] = pe_data.get("PE")
+                    all_data[name]["PE百分位"] = pe_data.get("PE百分位")
+                    all_data[name]["PE日期"] = pe_data.get("PE日期")
+                
                 successful_count += 1
                 self.log_info(f"{name} 数据采集成功 (数据源: {result.get('数据源', '未知')}, 数据日期: {result.get('数据日期', 'N/A')})")
             else:
