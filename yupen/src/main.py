@@ -9,8 +9,8 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from yupen.orchestrator import MultiAgentOrchestrator
-from yupen.config import INDICES, REPORT_CONFIG
+from orchestrator import MultiAgentOrchestrator
+from config import INDICES, REPORT_CONFIG
 
 
 def main():

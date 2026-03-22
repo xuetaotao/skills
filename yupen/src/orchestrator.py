@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import logging
 
-from .agents import (
+from agents import (
     DataCollectorAgent,
     DataAnalyzerAgent,
     SignalGeneratorAgent,

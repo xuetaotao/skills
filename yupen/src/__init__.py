@@ -10,13 +10,13 @@ Multi-Agent Quantitative Trading System based on Fish Basin Model
 - MultiAgentOrchestrator: 主调度器，协调各Agent工作
 """
 
-from .agents import (
+from agents import (
     DataCollectorAgent,
     DataAnalyzerAgent,
     SignalGeneratorAgent,
     ReportAgent
 )
-from .orchestrator import MultiAgentOrchestrator
+from orchestrator import MultiAgentOrchestrator
 
 __all__ = [
     'DataCollectorAgent',

@@ -11,10 +11,10 @@ import threading
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from yupen.orchestrator import MultiAgentOrchestrator
-from yupen.config import INDICES
+from orchestrator import MultiAgentOrchestrator
+from config import INDICES
 
 logging.basicConfig(
     level=logging.INFO,

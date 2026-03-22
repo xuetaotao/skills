@@ -34,12 +34,15 @@ env/
 *~
 
 # Reports
-yupen/reports/*.html
-yupen/reports/*.json
-yupen/reports/*.md
+src/reports/*.html
+src/reports/*.json
+src/reports/*.md
 
 # Logs
 *.log
+
+# Virtual Environment
+.venv/
 
 # OS
 .DS_Store
