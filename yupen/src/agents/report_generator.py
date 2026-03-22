@@ -8,6 +8,7 @@ from datetime import datetime
 import json
 
 from .base import BaseAgent
+from config import REPORT_CONFIG
 
 
 class ReportAgent(BaseAgent):
@@ -635,7 +636,7 @@ class ReportAgent(BaseAgent):
                         <th>临界值(MA20)</th>
                         <th>状态</th>
                         <th>偏离度</th>
-                        <th>PE百分位</th>
+                        {f'<th>PE百分位</th>' if REPORT_CONFIG.get('显示PE百分位', True) else ''}
                         <th>状态转变时间</th>
                     </tr>
                 </thead>
@@ -747,18 +748,22 @@ class ReportAgent(BaseAgent):
             代码 = analysis.get('code', 'N/A')
             状态转变时间 = analysis.get('状态开始日期', '') or ''
             
-            PE百分位 = analysis.get('PE百分位')
-            if PE百分位 is not None:
-                if PE百分位 < 30:
-                    pe_class = 'pe-low'
-                    pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
-                elif PE百分位 > 70:
-                    pe_class = 'pe-high'
-                    pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
+            show_pe = REPORT_CONFIG.get('显示PE百分位', True)
+            if show_pe:
+                PE百分位 = analysis.get('PE百分位')
+                if PE百分位 is not None:
+                    if PE百分位 < 30:
+                        pe_class = 'pe-low'
+                        pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
+                    elif PE百分位 > 70:
+                        pe_class = 'pe-high'
+                        pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
+                    else:
+                        pe_str = f'{PE百分位:.1f}%'
                 else:
-                    pe_str = f'{PE百分位:.1f}%'
+                    pe_str = '--'
             else:
-                pe_str = '--'
+                pe_str = ''
 
             if isinstance(状态转变时间, str):
                 if 'T' in 状态转变时间:
@@ -770,6 +775,8 @@ class ReportAgent(BaseAgent):
             row_class = 'status-changed-row' if is_status_changed_today else ''
             changed_badge = '<span class="status-change-badge">⚡ 今日转变</span>' if is_status_changed_today else ''
 
+            pe_cell = f'<td>{pe_str}</td>' if show_pe else ''
+
             rows.append(f"""
                 <tr class="{row_class}">
                     <td><span class="{rank_class}">{item['趋势强度排名']}</span></td>
@@ -779,7 +786,7 @@ class ReportAgent(BaseAgent):
                     <td>{MA20:.2f}</td>
                     <td><span class="{status_class}">{status_text}</span></td>
                     <td><span class="deviation {deviation_class}">{deviation_str}</span></td>
-                    <td>{pe_str}</td>
+                    {pe_cell}
                     <td>{状态转变时间}</td>
                 </tr>
             """)
