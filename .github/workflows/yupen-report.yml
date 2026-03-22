@@ -41,13 +41,21 @@ jobs:
         run: |
           python src/main.py
       
+      - name: Prepare pages artifact
+        run: |
+          mkdir -p _pages
+          cp src/reports/index.html _pages/
+          cp src/reports/latest_report.html _pages/
+          cp src/reports/latest_report.json _pages/
+          cp src/reports/latest_report.md _pages/
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'yupen/src/reports'
+          path: 'yupen/_pages'
       
       - name: Deploy to GitHub Pages
         id: deployment
