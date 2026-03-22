@@ -37,6 +37,7 @@ env/
 src/reports/*.html
 src/reports/*.json
 src/reports/*.md
+!src/reports/index.html
 
 # Logs
 *.log
