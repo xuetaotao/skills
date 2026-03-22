@@ -80,6 +80,21 @@ def main():
         with open(latest_html, "w", encoding="utf-8") as f:
             f.write(html_report)
 
+        index_html = os.path.join(output_dir, "index.html")
+        index_content = """<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0; url=latest_report.html">
+    <title>鱼盆模型量化分析报告</title>
+</head>
+<body>
+    <p>正在跳转到最新报告...</p>
+    <p>如果没有自动跳转，请<a href="latest_report.html">点击这里</a></p>
+</body>
+</html>"""
+        with open(index_html, "w", encoding="utf-8") as f:
+            f.write(index_content)
+
         print(f"📁 报告已保存:")
         print(f"   JSON: {json_path}")
         print(f"   Markdown: {md_path}")

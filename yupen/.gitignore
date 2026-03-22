@@ -34,10 +34,7 @@ env/
 *~
 
 # Reports
-src/reports/*.html
-src/reports/*.json
-src/reports/*.md
-!src/reports/index.html
+src/reports/
 
 # Logs
 *.log
