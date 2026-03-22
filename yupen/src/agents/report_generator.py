@@ -538,13 +538,15 @@ class ReportAgent(BaseAgent):
         }}
 
         .yes-count {{
-            color: #2e7d32;
+            color: #4caf50;
             font-weight: bold;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
         }}
 
         .no-count {{
-            color: #c62828;
+            color: #ff8a80;
             font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 138, 128, 0.5);
         }}
     </style>
 </head>
@@ -613,6 +615,7 @@ class ReportAgent(BaseAgent):
                    <span class="no-count">{summary.get('NO数量', 0)}</span> 个指数在20日线下。</p>
                 <p style="margin-top: 10px;">平均偏离度：<strong>{summary.get('平均偏离度', '0.00%')}</strong></p>
             </div>
+            {self._generate_brief_interpretation_html(summary)}
             <h3 style="margin: 20px 0 15px 0;">强势指数（可关注）</h3>
             {self._generate_signal_list(ranked_signals, 'YES', signals)}
 
@@ -808,4 +811,45 @@ class ReportAgent(BaseAgent):
                 </div>
             """)
 
-        return "\n".join(items) + (f'<p style="margin-top:10px;color:#666;font-size:0.9em;">等{len(filtered)}个指数</p>' if len(filtered) > 3 else '')
+        if len(filtered) <= 3:
+            return "\n".join(items)
+
+        hidden_items = []
+        for item in filtered[3:]:
+            name = item['指数名称']
+            deviation = item['偏离度'] * 100
+            hidden_items.append(f"""
+                <div class="signal-tag {'signal-buy' if status_filter == 'YES' else 'signal-sell'}">
+                    {name} <span style="opacity:0.8">({deviation:+.2f}%)</span>
+                </div>
+            """)
+
+        expand_id = f"expand-{status_filter.lower()}"
+        return f"""
+            {"\n".join(items)}
+            <div id="{expand_id}" style="display: none;">
+                {"\n".join(hidden_items)}
+            </div>
+            <button onclick="document.getElementById('{expand_id}').style.display = document.getElementById('{expand_id}').style.display === 'none' ? 'block' : 'none'; this.textContent = document.getElementById('{expand_id}').style.display === 'none' ? '展开全部 ({len(filtered)}个)' : '收起';" 
+                    style="margin-top: 10px; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 0.9em;">
+                展开全部 ({len(filtered)}个)
+            </button>
+        """
+
+    def _generate_brief_interpretation_html(self, summary: Dict) -> str:
+        interpretations = summary.get("简要解读", [])
+        if not interpretations:
+            return ""
+
+        items = []
+        for text in interpretations:
+            items.append(f'<li style="margin: 8px 0; color: #444;">• {text}</li>')
+
+        return f"""
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea;">
+                <h4 style="color: #2c3e50; margin-bottom: 15px;">📝 简要解读</h4>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    {"".join(items)}
+                </ul>
+            </div>
+        """

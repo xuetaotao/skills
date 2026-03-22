@@ -27,6 +27,8 @@ class SignalGeneratorAgent(BaseAgent):
 
         summary = self._generate_summary(ranked_signals)
 
+        summary["简要解读"] = self._generate_brief_interpretation(summary, ranked_signals)
+
         data_dates = [analysis.get("数据日期") for analysis in analyzed_data.values() if analysis.get("数据日期")]
         unique_dates = sorted(set(d for d in data_dates if d and d != 'N/A'), reverse=True)
         summary["数据日期"] = unique_dates[0] if unique_dates else datetime.now().strftime('%Y-%m-%d')
@@ -151,3 +153,39 @@ class SignalGeneratorAgent(BaseAgent):
             "最强偏离度": f"{top_strength['偏离度'] * 100:.2f}%" if top_strength and top_strength["偏离度"] != -999 else "0.00%",
             "数据获取失败": len(failed_signals)
         }
+
+    def _generate_brief_interpretation(self, summary: Dict[str, Any], ranked_signals: List[Dict[str, Any]]) -> List[str]:
+        interpretations = []
+
+        yes_count = summary.get("YES数量", 0)
+        no_count = summary.get("NO数量", 0)
+        total = yes_count + no_count
+
+        valid_signals = [s for s in ranked_signals if s.get("状态") is not None]
+        yes_signals = [s for s in valid_signals if s.get("状态") == "YES"]
+        no_signals = [s for s in valid_signals if s.get("状态") == "NO"]
+
+        if yes_count > 0 and yes_signals:
+            top_yes = yes_signals[0]
+            interpretations.append(f"相对强势: {top_yes['指数名称']}目前价格在MA20上方，技术面相对较好")
+            if len(yes_signals) > 1:
+                other_yes = "、".join([s['指数名称'] for s in yes_signals[1:4]])
+                interpretations.append(f"其他强势指数: {other_yes}")
+
+        if no_count > 0:
+            if no_count >= total * 0.7:
+                interpretations.append(f"整体偏弱: 大部分指数({no_count}个)都在均线下方运行，市场处于调整状态")
+            elif no_count >= total * 0.5:
+                interpretations.append(f"市场分化: {no_count}个指数在均线下方，需谨慎操作")
+
+        large_deviation_signals = [s for s in no_signals if s.get("偏离度") is not None and s["偏离度"] < -0.1]
+        if large_deviation_signals:
+            names = "、".join([s['指数名称'] for s in large_deviation_signals[:3]])
+            interpretations.append(f"超跌关注: {names}偏离度较大，可能存在超跌反弹机会")
+
+        strong_deviation = [s for s in yes_signals if s.get("偏离度") is not None and s["偏离度"] > 0.03]
+        if strong_deviation:
+            names = "、".join([s['指数名称'] for s in strong_deviation[:3]])
+            interpretations.append(f"强势追涨: {names}偏离度较高，趋势强劲但需注意回调风险")
+
+        return interpretations
