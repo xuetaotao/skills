@@ -20,13 +20,18 @@ class DataSourceManager:
         self.sources_tried = {}
 
     def fetch_index_data(self, code: str, market: str, days: int) -> Optional[Dict]:
-        sources = [
-            ("新浪财经", self._fetch_from_sina),
-            ("中证CSIndex", self._fetch_from_csindex),
-            ("Baostock", self._fetch_from_baostock),
-            ("东方财富", self._fetch_from_eastmoney),
-            ("腾讯财经", self._fetch_from_tencent),
-        ]
+        if market == "us":
+            sources = [("新浪美股指数", self._fetch_from_us_index)]
+        elif market == "metal":
+            sources = [("外盘商品期货", self._fetch_from_metal)]
+        else:
+            sources = [
+                ("新浪财经", self._fetch_from_sina),
+                ("中证CSIndex", self._fetch_from_csindex),
+                ("Baostock", self._fetch_from_baostock),
+                ("东方财富", self._fetch_from_eastmoney),
+                ("腾讯财经", self._fetch_from_tencent),
+            ]
 
         for source_name, fetch_func in sources:
             try:
@@ -193,6 +198,50 @@ class DataSourceManager:
             return {'data': df, 'symbol': code}
         except Exception as e:
             logger.warning(f"中证CSIndex 获取 {code} 失败: {e}")
+            return None
+
+    def _fetch_from_us_index(self, code: str, market: str, days: int) -> Optional[Dict]:
+        import akshare as ak
+
+        try:
+            df = ak.index_us_stock_sina(symbol=code)
+
+            if df is None or len(df) == 0:
+                return None
+
+            if 'date' not in df.columns:
+                return None
+
+            df['date'] = pd.to_datetime(df['date'])
+
+            if 'date' in df.columns and len(df) > days:
+                df = df.tail(days)
+
+            return {'data': df, 'symbol': code}
+        except Exception as e:
+            logger.warning(f"新浪美股指数 获取 {code} 失败: {e}")
+            return None
+
+    def _fetch_from_metal(self, code: str, market: str, days: int) -> Optional[Dict]:
+        import akshare as ak
+
+        try:
+            df = ak.futures_foreign_hist(symbol=code)
+
+            if df is None or len(df) == 0:
+                return None
+
+            if 'date' not in df.columns:
+                return None
+
+            df['date'] = pd.to_datetime(df['date'])
+
+            if 'date' in df.columns and len(df) > days:
+                df = df.tail(days)
+
+            return {'data': df, 'symbol': code}
+        except Exception as e:
+            logger.warning(f"外盘商品期货 获取 {code} 失败: {e}")
             return None
 
 

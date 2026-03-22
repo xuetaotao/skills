@@ -19,6 +19,10 @@ INDICES = [
     {"name": "创业板指", "code": "399006", "market": "sz"},
     {"name": "科创50", "code": "000688", "market": "sh"},
     {"name": "双创50", "code": "931643", "market": "sh"},
+    {"name": "纳斯达克综合指数", "code": ".IXIC", "market": "us"},
+    {"name": "标普500", "code": ".INX", "market": "us"},
+    {"name": "伦敦金现", "code": "XAU", "market": "metal"},
+    {"name": "伦敦银现", "code": "XAG", "market": "metal"},
 ]
 
 REPORT_CONFIG = {
