@@ -14,7 +14,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from orchestrator import MultiAgentOrchestrator
-from config import INDICES
+from config import INDICES, REPORT_CONFIG
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,15 +56,16 @@ class YupenScheduler:
             raise
 
     def start(self):
-        schedule.every().monday.at("15:30").do(self._scheduled_run)
-        schedule.every().tuesday.at("15:30").do(self._scheduled_run)
-        schedule.every().wednesday.at("15:30").do(self._scheduled_run)
-        schedule.every().thursday.at("15:30").do(self._scheduled_run)
-        schedule.every().friday.at("15:30").do(self._scheduled_run)
+        run_time = REPORT_CONFIG.get("交易时间", "19:00")
+        schedule.every().monday.at(run_time).do(self._scheduled_run)
+        schedule.every().tuesday.at(run_time).do(self._scheduled_run)
+        schedule.every().wednesday.at(run_time).do(self._scheduled_run)
+        schedule.every().thursday.at(run_time).do(self._scheduled_run)
+        schedule.every().friday.at(run_time).do(self._scheduled_run)
 
         self.is_running = True
         logger.info("⏰ 定时调度器已启动")
-        logger.info("📅 将在每个交易日的 15:30 自动运行分析")
+        logger.info(f"📅 将在每个交易日的 {run_time} 自动运行分析")
         logger.info("按 Ctrl+C 停止调度器")
 
         self._run_loop()
