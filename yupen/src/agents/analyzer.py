@@ -86,6 +86,12 @@ class DataAnalyzerAgent(BaseAgent):
 
         偏离度 = (close_price - ma_value) / ma_value if ma_value > 0 else 0
 
+        涨跌幅 = None
+        if len(df) >= 2:
+            prev_close = df.iloc[-2]['close']
+            if prev_close and prev_close > 0:
+                涨跌幅 = (close_price - prev_close) / prev_close
+
         df['偏离度'] = (df['close'] - df['ma']) / df['ma']
 
         status = "YES" if close_price > ma_value else "NO"
@@ -97,6 +103,7 @@ class DataAnalyzerAgent(BaseAgent):
             "MA20": ma_value,
             "偏离度": 偏离度,
             "偏离度百分比": f"{偏离度 * 100:.2f}%",
+            "涨跌幅": 涨跌幅,
             "状态": status,
             "状态开始日期": status_start_date,
             "趋势强度": 0,

@@ -48,12 +48,14 @@ class ReportAgent(BaseAgent):
         }
 
         for name, signal in signals.items():
+            analysis = analyzed_data.get(name, {})
             detail = {
                 "指数名称": name,
-                "代码": analyzed_data.get(name, {}).get("code", ""),
-                "当前价格": analyzed_data.get(name, {}).get("当前价格", 0),
-                "MA20": analyzed_data.get(name, {}).get("MA20", 0),
-                "偏离度": analyzed_data.get(name, {}).get("偏离度百分比", "0.00%"),
+                "代码": analysis.get("code", ""),
+                "当前价格": analysis.get("当前价格", 0),
+                "涨跌幅": analysis.get("涨跌幅"),
+                "MA20": analysis.get("MA20", 0),
+                "偏离度": analysis.get("偏离度百分比", "0.00%"),
                 "状态": signal.get("状态", "NO"),
                 "交易信号": signal.get("当前信号", ""),
                 "操作建议": signal.get("操作建议", ""),
@@ -113,6 +115,10 @@ class ReportAgent(BaseAgent):
                 lines.append(f"- **操作建议**: 待数据修复")
             else:
                 lines.append(f"- **当前价格**: {analysis.get('当前价格', 0) or 0:.2f}")
+                涨跌幅 = analysis.get('涨跌幅')
+                if 涨跌幅 is not None:
+                    涨跌幅_str = f"+{涨跌幅 * 100:.2f}%" if 涨跌幅 > 0 else f"{涨跌幅 * 100:.2f}%"
+                    lines.append(f"- **涨跌幅**: {涨跌幅_str}")
                 lines.append(f"- **MA20**: {analysis.get('MA20', 0) or 0:.2f}")
                 lines.append(f"- **偏离度**: {analysis.get('偏离度百分比', '0.00%')}")
                 lines.append(f"- **状态**: {signal.get('状态', 'NO')}")
@@ -586,6 +592,16 @@ class ReportAgent(BaseAgent):
             color: #c62828;
             font-weight: bold;
         }}
+
+        .change-up {{
+            color: #2e7d32;
+            font-weight: bold;
+        }}
+
+        .change-down {{
+            color: #c62828;
+            font-weight: bold;
+        }}
     </style>
 </head>
 <body>
@@ -633,6 +649,7 @@ class ReportAgent(BaseAgent):
                         <th>指数名称</th>
                         <th>代码</th>
                         <th>现价</th>
+                        <th>涨跌幅</th>
                         <th>临界值(MA20)</th>
                         <th>状态</th>
                         <th>偏离度</th>
@@ -748,6 +765,19 @@ class ReportAgent(BaseAgent):
             代码 = analysis.get('code', 'N/A')
             状态转变时间 = analysis.get('状态开始日期', '') or ''
             
+            涨跌幅 = analysis.get('涨跌幅')
+            if 涨跌幅 is not None:
+                if 涨跌幅 > 0:
+                    change_class = 'change-up'
+                    change_str = f'<span class="{change_class}">+{涨跌幅 * 100:.2f}%</span>'
+                elif 涨跌幅 < 0:
+                    change_class = 'change-down'
+                    change_str = f'<span class="{change_class}">{涨跌幅 * 100:.2f}%</span>'
+                else:
+                    change_str = f'{涨跌幅 * 100:.2f}%'
+            else:
+                change_str = '--'
+            
             show_pe = REPORT_CONFIG.get('显示PE百分位', True)
             if show_pe:
                 PE百分位 = analysis.get('PE百分位')
@@ -783,6 +813,7 @@ class ReportAgent(BaseAgent):
                     <td><strong>{name}</strong>{changed_badge}</td>
                     <td><code>{代码}</code></td>
                     <td><strong>{现价:.2f}</strong></td>
+                    <td>{change_str}</td>
                     <td>{MA20:.2f}</td>
                     <td><span class="{status_class}">{status_text}</span></td>
                     <td><span class="deviation {deviation_class}">{deviation_str}</span></td>
@@ -821,6 +852,17 @@ class ReportAgent(BaseAgent):
 
             偏离度 = analysis.get('偏离度', 0) or 0
             deviation_class = 'positive' if 偏离度 > 0 else 'negative' if 偏离度 < 0 else 'neutral'
+            
+            涨跌幅 = analysis.get('涨跌幅')
+            if 涨跌幅 is not None:
+                if 涨跌幅 > 0:
+                    change_display = f'<span style="color: #2e7d32;">+{涨跌幅 * 100:.2f}%</span>'
+                elif 涨跌幅 < 0:
+                    change_display = f'<span style="color: #c62828;">{涨跌幅 * 100:.2f}%</span>'
+                else:
+                    change_display = f'{涨跌幅 * 100:.2f}%'
+            else:
+                change_display = '--'
 
             cards.append(f"""
                 <div class="detail-card">
@@ -832,6 +874,10 @@ class ReportAgent(BaseAgent):
                     <div class="detail-item">
                         <span class="label">当前价格</span>
                         <span class="value">{analysis.get('当前价格', 0) or 0:.2f}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">涨跌幅</span>
+                        <span class="value">{change_display}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">MA20</span>
