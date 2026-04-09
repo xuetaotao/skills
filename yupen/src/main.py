@@ -61,6 +61,7 @@ def main():
         date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         json_path = os.path.join(output_dir, f"yupen_report_{date_str}.json")
         md_path = os.path.join(output_dir, f"yupen_report_{date_str}.md")
+        html_path = os.path.join(output_dir, f"yupen_report_{date_str}.html")
         latest_json = os.path.join(output_dir, "latest_report.json")
         latest_md = os.path.join(output_dir, "latest_report.md")
         latest_html = os.path.join(output_dir, "latest_report.html")
@@ -77,6 +78,8 @@ def main():
             f.write(markdown_report)
 
         html_report = report_result.get("html_report", "")
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_report)
         with open(latest_html, "w", encoding="utf-8") as f:
             f.write(html_report)
 
@@ -98,7 +101,8 @@ def main():
         print(f"📁 报告已保存:")
         print(f"   JSON: {json_path}")
         print(f"   Markdown: {md_path}")
-        print(f"   HTML: {latest_html}")
+        print(f"   HTML(归档): {html_path}")
+        print(f"   HTML(最新): {latest_html}")
         print()
 
         print(f"执行耗时: {result.get('execution_time', 0):.2f} 秒")
