@@ -12,6 +12,13 @@ from config import REPORT_CONFIG
 
 
 class ReportAgent(BaseAgent):
+    MARKET_LABELS = {
+        "sh": "A股",
+        "sz": "A股",
+        "us": "美股",
+        "metal": "大宗商品"
+    }
+
     def __init__(self):
         super().__init__("ReportAgent")
 
@@ -22,10 +29,11 @@ class ReportAgent(BaseAgent):
         signals = context.get("signals", {})
         ranked_signals = context.get("ranked_signals", [])
         summary = context.get("summary", {})
+        raw_data = context.get("raw_data", {})
 
         json_report = self._generate_json_report(analyzed_data, signals, ranked_signals, summary)
-        markdown_report = self._generate_markdown_report(analyzed_data, signals, ranked_signals, summary)
-        html_report = self._generate_html_report(analyzed_data, signals, ranked_signals, summary)
+        markdown_report = self._generate_markdown_report(analyzed_data, signals, ranked_signals, summary, raw_data)
+        html_report = self._generate_html_report(analyzed_data, signals, ranked_signals, summary, raw_data)
 
         result = {
             "status": "success",
@@ -65,7 +73,7 @@ class ReportAgent(BaseAgent):
 
         return json.dumps(report, ensure_ascii=False, indent=2)
 
-    def _generate_markdown_report(self, analyzed_data: Dict, signals: Dict, ranked_signals: List, summary: Dict) -> str:
+    def _generate_markdown_report(self, analyzed_data: Dict, signals: Dict, ranked_signals: List, summary: Dict, raw_data: Dict) -> str:
         lines = []
 
         lines.append("# 🐟 鱼盆模型量化分析报告")
@@ -89,12 +97,18 @@ class ReportAgent(BaseAgent):
         lines.append("")
 
         if ranked_signals:
-            lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 操作建议 |")
-            lines.append("|------|----------|------|--------|----------|")
-            for item in ranked_signals:
-                偏离度 = item['偏离度']
-                偏离度_str = f"{偏离度*100:.2f}%" if 偏离度 != -999 else "N/A"
-                lines.append(f"| {item['趋势强度排名']} | {item['指数名称']} | {item['状态'] or '数据获取失败'} | {偏离度_str} | {item['操作建议']} |")
+            grouped_rankings = self._group_ranked_signals_by_market(ranked_signals, analyzed_data, raw_data)
+            for market_label, group in grouped_rankings.items():
+                lines.append(f"### {market_label}（数据更新时间：{group['数据更新时间']}）")
+                lines.append("")
+                lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 操作建议 |")
+                lines.append("|------|----------|------|--------|----------|")
+                for item in group["items"]:
+                    偏离度 = item['偏离度']
+                    偏离度_str = f"{偏离度*100:.2f}%" if 偏离度 != -999 else "N/A"
+                    状态 = item['状态'] if item['状态'] is not None else '数据获取失败'
+                    lines.append(f"| {item['趋势强度排名']} | {item['指数名称']} | {状态} | {偏离度_str} | {item['操作建议']} |")
+                lines.append("")
         lines.append("")
 
         lines.append("---\n")
@@ -138,7 +152,7 @@ class ReportAgent(BaseAgent):
 
         return "\n".join(lines)
 
-    def _generate_html_report(self, analyzed_data: Dict, signals: Dict, ranked_signals: List, summary: Dict) -> str:
+    def _generate_html_report(self, analyzed_data: Dict, signals: Dict, ranked_signals: List, summary: Dict, raw_data: Dict) -> str:
         html_template = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -609,8 +623,6 @@ class ReportAgent(BaseAgent):
         <div class="header">
             <h1>🐟 鱼盆模型量化分析报告</h1>
             <div class="subtitle">
-                <span class="data-info">📅 数据日期: {summary.get('数据日期', datetime.now().strftime('%Y-%m-%d'))}</span>
-                <span class="separator">|</span>
                 <span class="refresh-info">🕐 刷新时间: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}</span>
             </div>
         </div>
@@ -642,25 +654,7 @@ class ReportAgent(BaseAgent):
 
         <div class="section">
             <h2 class="section-title">📈 趋势强度排名</h2>
-            <table class="index-table">
-                <thead>
-                    <tr>
-                        <th>排名</th>
-                        <th>指数名称</th>
-                        <th>代码</th>
-                        <th>现价</th>
-                        <th>涨跌幅</th>
-                        <th>临界值(MA20)</th>
-                        <th>状态</th>
-                        <th>偏离度</th>
-                        {f'<th>PE百分位</th>' if REPORT_CONFIG.get('显示PE百分位', True) else ''}
-                        <th>状态转变时间</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {self._generate_table_rows(ranked_signals, signals, analyzed_data, summary)}
-                </tbody>
-            </table>
+            {self._generate_grouped_table_sections_html(ranked_signals, signals, analyzed_data, summary, raw_data)}
         </div>
 
         <div class="section">
@@ -722,12 +716,14 @@ class ReportAgent(BaseAgent):
 
             if 数据状态 == '获取失败':
                 rank_class = f'rank-badge rank-{item["趋势强度排名"]}' if item["趋势强度排名"] <= 3 else 'rank-badge'
+                show_pe = REPORT_CONFIG.get('显示PE百分位', True)
+                failed_colspan = 7 if show_pe else 6
                 rows.append(f"""
                 <tr class="data-failed-row">
                     <td><span class="{rank_class}">{item['趋势强度排名']}</span></td>
                     <td><strong>{name}</strong></td>
                     <td><code>{analysis.get('code', 'N/A')}</code></td>
-                    <td colspan="6"><span class="data-error">❌ 数据获取失败</span></td>
+                    <td colspan="{failed_colspan}"><span class="data-error">❌ 数据获取失败</span></td>
                 </tr>
             """)
                 continue
@@ -823,6 +819,77 @@ class ReportAgent(BaseAgent):
             """)
 
         return "\n".join(rows)
+
+    def _resolve_market_label(self, index_name: str, analyzed_data: Dict, raw_data: Dict) -> str:
+        market = raw_data.get(index_name, {}).get("market")
+        if market in self.MARKET_LABELS:
+            return self.MARKET_LABELS[market]
+
+        code = str(analyzed_data.get(index_name, {}).get("code", ""))
+        if code.startswith("."):
+            return "美股"
+        if code in {"XAU", "XAG"}:
+            return "大宗商品"
+        return "其他"
+
+    def _group_ranked_signals_by_market(self, ranked_signals: List, analyzed_data: Dict, raw_data: Dict) -> Dict[str, Dict[str, Any]]:
+        group_order = ["A股", "美股", "大宗商品", "其他"]
+        grouped = {label: {"items": [], "dates": []} for label in group_order}
+
+        for item in ranked_signals:
+            name = item.get("指数名称", "")
+            market_label = self._resolve_market_label(name, analyzed_data, raw_data)
+            if market_label not in grouped:
+                grouped[market_label] = {"items": [], "dates": []}
+
+            grouped[market_label]["items"].append(item)
+            data_date = analyzed_data.get(name, {}).get("数据日期")
+            if data_date and data_date != "N/A":
+                grouped[market_label]["dates"].append(str(data_date))
+
+        result = {}
+        for label in group_order:
+            group = grouped.get(label, {"items": [], "dates": []})
+            if not group["items"]:
+                continue
+            unique_dates = sorted(set(group["dates"]), reverse=True)
+            result[label] = {
+                "items": group["items"],
+                "数据更新时间": unique_dates[0] if unique_dates else "N/A"
+            }
+        return result
+
+    def _generate_grouped_table_sections_html(self, ranked_signals: List, signals: Dict, analyzed_data: Dict, summary: Dict, raw_data: Dict) -> str:
+        sections = []
+        grouped_rankings = self._group_ranked_signals_by_market(ranked_signals, analyzed_data, raw_data)
+        show_pe = REPORT_CONFIG.get('显示PE百分位', True)
+        pe_header = "<th>PE百分位</th>" if show_pe else ""
+
+        for market_label, group in grouped_rankings.items():
+            rows_html = self._generate_table_rows(group["items"], signals, analyzed_data, summary)
+            sections.append(f"""
+            <h3 style="margin: 18px 0 12px 0; color: #2c3e50;">{market_label}（数据更新时间：{group['数据更新时间']}）</h3>
+            <table class="index-table" style="margin-bottom: 20px;">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>指数名称</th>
+                        <th>代码</th>
+                        <th>现价</th>
+                        <th>涨跌幅</th>
+                        <th>临界值(MA20)</th>
+                        <th>状态</th>
+                        <th>偏离度</th>
+                        {pe_header}
+                        <th>状态转变时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+            """)
+        return "\n".join(sections)
 
     def _generate_detail_cards(self, signals: Dict, analyzed_data: Dict) -> str:
         cards = []
