@@ -1,16 +1,23 @@
 $ErrorActionPreference = "Stop"
 
+$originalDir = (Get-Location).Path
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $projectRoot
-
 $venvDir = Join-Path $projectRoot ".venv"
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
 
-if (-not (Test-Path $venvPython)) {
-    python -m venv .venv
+try {
+    Set-Location $projectRoot
+
+    if (-not (Test-Path $venvPython)) {
+        python3 -m venv .venv
+    }
+
+    & $venvPython -m pip install -r requirements.txt
+
+    Set-Location (Join-Path $projectRoot "src")
+    & $venvPython main.py
+}
+finally {
+    Set-Location $originalDir
 }
 
-& $venvPython -m pip install -r requirements.txt
-
-Set-Location (Join-Path $projectRoot "src")
-& $venvPython main.py

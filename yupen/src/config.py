@@ -35,6 +35,7 @@ REPORT_CONFIG = {
         "谨慎": -0.01,
     },
     "显示PE百分位": True,
+    "显示数据源PE指标": True,
 }
 
 PE_INDEX_MAP = {

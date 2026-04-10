@@ -75,6 +75,7 @@ class ReportAgent(BaseAgent):
 
     def _generate_markdown_report(self, analyzed_data: Dict, signals: Dict, ranked_signals: List, summary: Dict, raw_data: Dict) -> str:
         lines = []
+        show_source_pe_metric = self._show_source_pe_metric()
 
         lines.append("# 🐟 鱼盆模型量化分析报告")
         lines.append("")
@@ -101,44 +102,24 @@ class ReportAgent(BaseAgent):
             for market_label, group in grouped_rankings.items():
                 lines.append(f"### {market_label}（数据更新时间：{group['数据更新时间']}）")
                 lines.append("")
-                lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 操作建议 |")
-                lines.append("|------|----------|------|--------|----------|")
+                if show_source_pe_metric:
+                    lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 数据源/PE百分位 | 操作建议 |")
+                    lines.append("|------|----------|------|--------|----------------|----------|")
+                else:
+                    lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 操作建议 |")
+                    lines.append("|------|----------|------|--------|----------|")
                 for item in group["items"]:
                     偏离度 = item['偏离度']
                     偏离度_str = f"{偏离度*100:.2f}%" if 偏离度 != -999 else "N/A"
                     状态 = item['状态'] if item['状态'] is not None else '数据获取失败'
-                    lines.append(f"| {item['趋势强度排名']} | {item['指数名称']} | {状态} | {偏离度_str} | {item['操作建议']} |")
+                    if show_source_pe_metric:
+                        analysis = analyzed_data.get(item["指数名称"], {})
+                        source_pe = self._format_source_pe_metric_text(analysis)
+                        lines.append(f"| {item['趋势强度排名']} | {item['指数名称']} | {状态} | {偏离度_str} | {source_pe} | {item['操作建议']} |")
+                    else:
+                        lines.append(f"| {item['趋势强度排名']} | {item['指数名称']} | {状态} | {偏离度_str} | {item['操作建议']} |")
                 lines.append("")
         lines.append("")
-
-        lines.append("---\n")
-        lines.append("## 🔍 各指数详细分析")
-        lines.append("")
-
-        for name, signal in signals.items():
-            analysis = analyzed_data.get(name, {})
-            数据状态 = analysis.get('数据状态', '成功')
-
-            lines.append(f"### {name}")
-            lines.append("")
-            lines.append(f"- **代码**: {analysis.get('code', 'N/A')}")
-
-            if 数据状态 == '获取失败':
-                lines.append(f"- **状态**: ❌ 数据获取失败")
-                lines.append(f"- **交易信号**: 无法生成")
-                lines.append(f"- **操作建议**: 待数据修复")
-            else:
-                lines.append(f"- **当前价格**: {analysis.get('当前价格', 0) or 0:.2f}")
-                涨跌幅 = analysis.get('涨跌幅')
-                if 涨跌幅 is not None:
-                    涨跌幅_str = f"+{涨跌幅 * 100:.2f}%" if 涨跌幅 > 0 else f"{涨跌幅 * 100:.2f}%"
-                    lines.append(f"- **涨跌幅**: {涨跌幅_str}")
-                lines.append(f"- **MA20**: {analysis.get('MA20', 0) or 0:.2f}")
-                lines.append(f"- **偏离度**: {analysis.get('偏离度百分比', '0.00%')}")
-                lines.append(f"- **状态**: {signal.get('状态', 'NO')}")
-                lines.append(f"- **交易信号**: {signal.get('当前信号', '')}")
-                lines.append(f"- **操作建议**: {signal.get('详细建议', '')}")
-            lines.append("")
 
         lines.append("---\n")
         lines.append("## ⚠️ 风险提示")
@@ -153,6 +134,7 @@ class ReportAgent(BaseAgent):
         return "\n".join(lines)
 
     def _generate_html_report(self, analyzed_data: Dict, signals: Dict, ranked_signals: List, summary: Dict, raw_data: Dict) -> str:
+        show_source_pe_metric_default = self._show_source_pe_metric()
         html_template = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -286,6 +268,40 @@ class ReportAgent(BaseAgent):
             margin-bottom: 25px;
             padding-bottom: 15px;
             border-bottom: 3px solid #667eea;
+        }}
+
+        .section-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid #667eea;
+        }}
+
+        .section-header .section-title {{
+            margin: 0;
+            padding: 0;
+            border: none;
+        }}
+
+        .table-toggle {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #334155;
+            font-size: 0.92em;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 6px 12px;
+            border-radius: 999px;
+            user-select: none;
+        }}
+
+        .table-toggle input {{
+            cursor: pointer;
         }}
 
         .index-table {{
@@ -422,6 +438,10 @@ class ReportAgent(BaseAgent):
             border-radius: 12px;
             font-size: 0.85em;
             font-weight: 500;
+            line-height: 1.2;
+            display: inline-block;
+            max-width: 100%;
+            word-break: break-word;
         }}
 
         .date-tag {{
@@ -431,6 +451,22 @@ class ReportAgent(BaseAgent):
             border-radius: 12px;
             font-size: 0.85em;
             font-weight: 500;
+            line-height: 1.2;
+            display: inline-block;
+            max-width: 100%;
+            word-break: break-word;
+        }}
+
+        .source-pe-cell {{
+            vertical-align: top;
+            min-width: 130px;
+        }}
+
+        .source-pe-wrap {{
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
         }}
 
         .data-failed-row {{
@@ -616,6 +652,14 @@ class ReportAgent(BaseAgent):
             color: #c62828;
             font-weight: bold;
         }}
+
+        @media (max-width: 900px) {{
+            .index-table {{
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }}
+        }}
     </style>
 </head>
 <body>
@@ -653,8 +697,14 @@ class ReportAgent(BaseAgent):
         </div>
 
         <div class="section">
-            <h2 class="section-title">📈 趋势强度排名</h2>
-            {self._generate_grouped_table_sections_html(ranked_signals, signals, analyzed_data, summary, raw_data)}
+            <div class="section-header">
+                <h2 class="section-title">📈 趋势强度排名</h2>
+                <label class="table-toggle">
+                    <input id="toggle-source-pe" type="checkbox" {'checked' if show_source_pe_metric_default else ''}>
+                    显示扩展指标（数据源/PE）
+                </label>
+            </div>
+            {self._generate_grouped_table_sections_html(ranked_signals, signals, analyzed_data, summary, raw_data, show_source_pe_metric_default)}
         </div>
 
         <div class="section">
@@ -671,13 +721,6 @@ class ReportAgent(BaseAgent):
 
             <h3 style="margin: 20px 0 15px 0;">弱势指数（需谨慎）</h3>
             {self._generate_signal_list(ranked_signals, 'NO', signals)}
-        </div>
-
-        <div class="section">
-            <h2 class="section-title">🔍 各指数详细数据</h2>
-            <div class="detail-grid">
-                {self._generate_detail_cards(signals, analyzed_data)}
-            </div>
         </div>
 
         <div class="section">
@@ -699,12 +742,41 @@ class ReportAgent(BaseAgent):
             <p>鱼盆模型量化分析系统 | 基于20日均线趋势跟踪策略</p>
         </div>
     </div>
+    <script>
+        (function() {{
+            const STORAGE_KEY = "yupen.showSourcePeMetric";
+            const toggle = document.getElementById("toggle-source-pe");
+            if (!toggle) return;
+
+            function setOptionalMetricVisible(show) {{
+                document.querySelectorAll('[data-col="source-pe"]').forEach((el) => {{
+                    el.style.display = show ? "" : "none";
+                }});
+                document.querySelectorAll('[data-failed-colspan]').forEach((el) => {{
+                    const colspan = show ? el.getAttribute("data-colspan-on") : el.getAttribute("data-colspan-off");
+                    if (colspan) el.setAttribute("colspan", colspan);
+                }});
+            }}
+
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved === "true" || saved === "false") {{
+                toggle.checked = saved === "true";
+            }}
+            setOptionalMetricVisible(toggle.checked);
+
+            toggle.addEventListener("change", () => {{
+                const show = toggle.checked;
+                localStorage.setItem(STORAGE_KEY, String(show));
+                setOptionalMetricVisible(show);
+            }});
+        }})();
+    </script>
 </body>
 </html>"""
 
         return html_template
 
-    def _generate_table_rows(self, ranked_signals: List, signals: Dict, analyzed_data: Dict, summary: Dict) -> str:
+    def _generate_table_rows(self, ranked_signals: List, signals: Dict, analyzed_data: Dict, summary: Dict, show_source_pe_metric: bool) -> str:
         rows = []
         数据日期 = summary.get('数据日期', datetime.now().strftime('%Y-%m-%d'))
         for item in ranked_signals:
@@ -716,14 +788,13 @@ class ReportAgent(BaseAgent):
 
             if 数据状态 == '获取失败':
                 rank_class = f'rank-badge rank-{item["趋势强度排名"]}' if item["趋势强度排名"] <= 3 else 'rank-badge'
-                show_pe = REPORT_CONFIG.get('显示PE百分位', True)
-                failed_colspan = 7 if show_pe else 6
+                failed_colspan = 7 if show_source_pe_metric else 6
                 rows.append(f"""
                 <tr class="data-failed-row">
                     <td><span class="{rank_class}">{item['趋势强度排名']}</span></td>
                     <td><strong>{name}</strong></td>
                     <td><code>{analysis.get('code', 'N/A')}</code></td>
-                    <td colspan="{failed_colspan}"><span class="data-error">❌ 数据获取失败</span></td>
+                    <td colspan="{failed_colspan}" data-failed-colspan="source-pe" data-colspan-on="7" data-colspan-off="6"><span class="data-error">❌ 数据获取失败</span></td>
                 </tr>
             """)
                 continue
@@ -774,22 +845,7 @@ class ReportAgent(BaseAgent):
             else:
                 change_str = '--'
             
-            show_pe = REPORT_CONFIG.get('显示PE百分位', True)
-            if show_pe:
-                PE百分位 = analysis.get('PE百分位')
-                if PE百分位 is not None:
-                    if PE百分位 < 30:
-                        pe_class = 'pe-low'
-                        pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
-                    elif PE百分位 > 70:
-                        pe_class = 'pe-high'
-                        pe_str = f'<span class="{pe_class}">{PE百分位:.1f}%</span>'
-                    else:
-                        pe_str = f'{PE百分位:.1f}%'
-                else:
-                    pe_str = '--'
-            else:
-                pe_str = ''
+            source_pe_str = self._format_source_pe_metric_html(analysis)
 
             if isinstance(状态转变时间, str):
                 if 'T' in 状态转变时间:
@@ -801,7 +857,8 @@ class ReportAgent(BaseAgent):
             row_class = 'status-changed-row' if is_status_changed_today else ''
             changed_badge = '<span class="status-change-badge">⚡ 今日转变</span>' if is_status_changed_today else ''
 
-            pe_cell = f'<td>{pe_str}</td>' if show_pe else ''
+            source_pe_style = "" if show_source_pe_metric else "display:none;"
+            source_pe_cell = f'<td data-col="source-pe" class="source-pe-cell" style="{source_pe_style}">{source_pe_str}</td>'
 
             rows.append(f"""
                 <tr class="{row_class}">
@@ -813,7 +870,7 @@ class ReportAgent(BaseAgent):
                     <td>{MA20:.2f}</td>
                     <td><span class="{status_class}">{status_text}</span></td>
                     <td><span class="deviation {deviation_class}">{deviation_str}</span></td>
-                    {pe_cell}
+                    {source_pe_cell}
                     <td>{状态转变时间}</td>
                 </tr>
             """)
@@ -859,14 +916,14 @@ class ReportAgent(BaseAgent):
             }
         return result
 
-    def _generate_grouped_table_sections_html(self, ranked_signals: List, signals: Dict, analyzed_data: Dict, summary: Dict, raw_data: Dict) -> str:
+    def _generate_grouped_table_sections_html(self, ranked_signals: List, signals: Dict, analyzed_data: Dict, summary: Dict, raw_data: Dict, show_source_pe_metric: bool) -> str:
         sections = []
         grouped_rankings = self._group_ranked_signals_by_market(ranked_signals, analyzed_data, raw_data)
-        show_pe = REPORT_CONFIG.get('显示PE百分位', True)
-        pe_header = "<th>PE百分位</th>" if show_pe else ""
+        source_pe_style = "" if show_source_pe_metric else "display:none;"
+        source_pe_header = f'<th data-col="source-pe" style="{source_pe_style}">数据源/PE百分位</th>'
 
         for market_label, group in grouped_rankings.items():
-            rows_html = self._generate_table_rows(group["items"], signals, analyzed_data, summary)
+            rows_html = self._generate_table_rows(group["items"], signals, analyzed_data, summary, show_source_pe_metric)
             sections.append(f"""
             <h3 style="margin: 18px 0 12px 0; color: #2c3e50;">{market_label}（数据更新时间：{group['数据更新时间']}）</h3>
             <table class="index-table" style="margin-bottom: 20px;">
@@ -880,7 +937,7 @@ class ReportAgent(BaseAgent):
                         <th>临界值(MA20)</th>
                         <th>状态</th>
                         <th>偏离度</th>
-                        {pe_header}
+                        {source_pe_header}
                         <th>状态转变时间</th>
                     </tr>
                 </thead>
@@ -890,6 +947,35 @@ class ReportAgent(BaseAgent):
             </table>
             """)
         return "\n".join(sections)
+
+    def _show_source_pe_metric(self) -> bool:
+        return REPORT_CONFIG.get("显示数据源PE指标", REPORT_CONFIG.get("显示PE百分位", True))
+
+    def _format_source_pe_metric_text(self, analysis: Dict) -> str:
+        source = analysis.get("数据源", "N/A") or "N/A"
+        pe_str = self._format_pe_percentile_text(analysis)
+        return f"{source} / {pe_str}"
+
+    def _format_source_pe_metric_html(self, analysis: Dict) -> str:
+        source = analysis.get("数据源", "N/A") or "N/A"
+        pe_str = self._format_pe_percentile_html(analysis)
+        return f'<div class="source-pe-wrap"><span class="source-tag">{source}</span><span class="date-tag">PE: {pe_str}</span></div>'
+
+    def _format_pe_percentile_text(self, analysis: Dict) -> str:
+        pe = analysis.get("PE百分位")
+        if pe is None:
+            return "--"
+        return f"{pe:.1f}%"
+
+    def _format_pe_percentile_html(self, analysis: Dict) -> str:
+        pe = analysis.get("PE百分位")
+        if pe is None:
+            return "--"
+        if pe < 30:
+            return f'<span class="pe-low">{pe:.1f}%</span>'
+        if pe > 70:
+            return f'<span class="pe-high">{pe:.1f}%</span>'
+        return f"{pe:.1f}%"
 
     def _generate_detail_cards(self, signals: Dict, analyzed_data: Dict) -> str:
         cards = []
