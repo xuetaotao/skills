@@ -70,6 +70,10 @@ class DownloaderWorker(QThread):
                 page_count += 1
                 self.progress.emit(f"\n[*] 正在处理第 {page_count} 页 (页码: {current_page_num})...")
                 
+                # 更新下载器的URL为当前页面URL（必须在fetch之前）
+                downloader.url = current_url
+                downloader.headers['Referer'] = current_url
+                
                 # 获取当前页面的 HTML
                 self.progress.emit(f"[+] 请求网页: {current_url}")
                 html = downloader.fetch_webpage()
@@ -85,7 +89,6 @@ class DownloaderWorker(QThread):
                 
                 # 提取图片 URL
                 self.progress.emit("[+] 解析图片 URL...")
-                downloader.url = current_url  # 更新当前 URL
                 image_urls = downloader.extract_image_urls(html)
                 
                 if len(image_urls) == 0:
@@ -142,8 +145,6 @@ class DownloaderWorker(QThread):
                 self.progress.emit(f"[+] 找到下一页: {next_url}")
                 current_url = next_url
                 current_page_num += 1
-                downloader.url = next_url
-                downloader.headers['Referer'] = next_url
             
             self.progress.emit(f"\n[+] 下载完成！总共下载 {total_downloaded} 张图片")
             self.finished.emit(True)

@@ -171,6 +171,12 @@ class WebpageImageDownloader:
                     if src.startswith('data:'):
                         continue
                     
+                    # 跳过图标类格式（SVG、ICO 几乎都是图标，不可能是照片）
+                    src_lower = src.lower().split('?')[0]  # 去掉查询参数后检查扩展名
+                    if src_lower.endswith('.svg') or src_lower.endswith('.ico'):
+                        skipped_count += 1
+                        continue
+                    
                     # 处理相对URL
                     absolute_url = urljoin(self.url, src)
                     
@@ -187,47 +193,135 @@ class WebpageImageDownloader:
             print(f"[-] 解析图片URL失败: {e}")
             return []
     
+    def _get_base_path(self, url):
+        """
+        提取URL的基础路径（去掉页码后缀和查询参数）
+        用于判断分页链接是否属于同一文章
+        
+        例如:
+          https://xiutaku.com/18426?page=2  -> /18426
+          https://www.1y.is/xiuren/no-9189-sophisticated.html/3  -> /xiuren/no-9189-sophisticated.html
+          https://example.com/page/2  -> /page
+        """
+        parsed = urlparse(url)
+        path = parsed.path
+        # 去掉末尾的页码（如 /3, .html/3）
+        path = re.sub(r'/\d+/?$', '', path)
+        return path
+    
+    def _is_pagination_link(self, href, current_url):
+        """
+        判断一个链接是否是当前页面的分页链接
+        
+        分页链接的条件（满足任一）：
+        1. href 包含 ?page=N 或 &page=N 查询参数，且路径与当前URL相同
+        2. href 路径是在当前URL路径之后追加分页数字（如 /article/123/2）
+        3. href 路径以当前URL的 .html 路径 + /数字 结尾（如 /article.html/2）
+        
+        不符合分页条件的链接（如推荐文章 /18393、品牌 /brand/1 等）会被排除。
+        """
+        if not href:
+            return False
+        
+        link_url = urljoin(current_url, href)
+        link_parsed = urlparse(link_url)
+        current_parsed = urlparse(current_url)
+        
+        # 域名必须相同
+        if link_parsed.netloc != current_parsed.netloc:
+            return False
+        
+        link_path = link_parsed.path.rstrip('/')
+        current_path = current_parsed.path.rstrip('/')
+        
+        # 条件1: href 使用 ?page=N 且路径完全相同
+        # query 属性不包含 ? 前缀，所以直接匹配 page=N
+        if link_path == current_path and re.search(r'(^|&)page=\d+', link_parsed.query, re.I):
+            return True
+        
+        # 条件2: href 路径以当前路径为前缀 + /数字（如 /article/123/2）
+        if link_path.startswith(current_path + '/'):
+            suffix = link_path[len(current_path):]
+            if re.match(r'^/\d+$', suffix):
+                return True
+        
+        # 条件3: 当前路径包含 .html，href 路径去掉末尾数字后与当前路径相同
+        # （如当前 /article.html，href /article.html/2）
+        if '.html' in current_path:
+            base_path = re.sub(r'/\d+$', '', link_path)
+            if base_path == current_path:
+                return True
+        
+        return False
+    
+    def _extract_page_num_from_link(self, link, current_url):
+        """
+        从一个 <a> 标签中提取页码数字
+        
+        提取优先级：
+        1. 链接文本为纯数字（如 "2", "17"），且是分页链接
+        2. 链接文本为 "PageX" 格式，且是分页链接
+        3. href 中的 ?page=N 查询参数
+        4. href 路径末尾的分页数字（如 /3, .html/3），且是分页链接
+        
+        Returns:
+            int 或 None
+        """
+        link_text = link.get_text(strip=True)
+        href = link.get('href', '')
+        
+        # 1. 纯数字文本 + 分页链接验证
+        match = re.match(r'^(\d+)$', link_text)
+        if match and self._is_pagination_link(href, current_url):
+            return int(match.group(1))
+        
+        # 2. PageX 格式 + 分页链接验证
+        page_match = re.match(r'^Page(\d+)$', link_text, re.IGNORECASE)
+        if page_match and self._is_pagination_link(href, current_url):
+            return int(page_match.group(1))
+        
+        # 3. ?page=N 查询参数
+        if href:
+            query_match = re.search(r'[?&]page=(\d+)', href, re.IGNORECASE)
+            if query_match:
+                return int(query_match.group(1))
+        
+        return None
+    
     def detect_total_pages(self, html_content, current_url):
         """
         从HTML中检测总页数
         
-        通过解析分页导航中的最大页码来确定总页数。
-        支持多种分页格式：PageX、纯数字、/page/X 等。
+        策略：
+        1. 优先从分页容器（class 含 pagination/page-num/pager/nav-page）中的链接提取
+        2. 只提取分页链接（通过 _is_pagination_link 验证）
+        3. 回退：从页面所有分页链接中提取最大页码
         """
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
-            all_links = soup.find_all('a')
-            
             max_page = 1
-            page_pattern = re.compile(r'^(\d+)$')
             
-            for link in all_links:
-                link_text = link.get_text(strip=True)
-                
-                # 匹配纯数字页码（如 "1", "2", "17"）
-                match = page_pattern.match(link_text)
-                if match:
-                    page_num = int(match.group(1))
-                    if page_num > max_page:
-                        max_page = page_num
-                    continue
-                
-                # 匹配 "PageX" 格式（如 "Page2", "Page17"）
-                page_match = re.match(r'^Page(\d+)$', link_text, re.IGNORECASE)
-                if page_match:
-                    page_num = int(page_match.group(1))
-                    if page_num > max_page:
-                        max_page = page_num
-                    continue
-                
-                # 从 href 中匹配页码模式（如 /2, /page/2, .html/2）
-                href = link.get('href', '')
-                if href:
-                    href_page_match = re.search(r'(?:/page/|\.html/|/)(\d+)/?$', href)
-                    if href_page_match:
-                        page_num = int(href_page_match.group(1))
-                        if page_num > max_page:
+            # 策略1: 从分页容器中查找
+            pagination_containers = soup.find_all(
+                ['div', 'nav', 'ul', 'ol', 'span'],
+                class_=re.compile(r'paginat|page-num|pager|nav-page', re.I)
+            )
+            
+            if pagination_containers:
+                for container in pagination_containers:
+                    links = container.find_all('a')
+                    for link in links:
+                        page_num = self._extract_page_num_from_link(link, current_url)
+                        if page_num is not None and page_num > max_page:
                             max_page = page_num
+            
+            # 策略2: 如果分页容器没找到有效页码，从所有链接中查找
+            if max_page == 1:
+                all_links = soup.find_all('a')
+                for link in all_links:
+                    page_num = self._extract_page_num_from_link(link, current_url)
+                    if page_num is not None and page_num > max_page:
+                        max_page = page_num
             
             print(f"[+] 检测到总页数: {max_page}")
             return max_page
@@ -251,28 +345,29 @@ class WebpageImageDownloader:
                 return None
             
             soup = BeautifulSoup(html_content, 'html.parser')
-            
+            all_links = soup.find_all('a')
             next_page = current_page_num + 1
             
-            # 方法 1: 查找文本为 "PageX" 的链接（如 "Page2", "Page3"）
-            all_links = soup.find_all('a')
+            # 方法 1: 查找文本为下一页页码的链接（如 "2", "Page2"）
+            # 且链接必须是当前页面的分页链接
             for link in all_links:
                 link_text = link.get_text(strip=True)
                 if link_text == f'Page{next_page}' or link_text == f'{next_page}':
                     href = link.get('href')
-                    if href:
+                    if href and self._is_pagination_link(href, current_url):
                         next_url = urljoin(current_url, href)
-                        print(f"[+] 通过 PageX 方法找到下一页: {next_url}")
+                        print(f"[+] 通过页码文本找到下一页: {next_url}")
                         return next_url
             
             # 方法 2: 查找 <a> 标签，文本包含 "下一页"、"next"、">>>" 等
-            next_texts = ['下一页', 'next', '>>>',  '»', '→', '→', 'next page', '下页', '>']
+            # 且链接必须是当前页面的分页链接
+            next_texts = ['下一页', 'next', '>>>', '»', '→', '→', 'next page', '下页', '>']
             for link in all_links:
                 link_text = link.get_text(strip=True).lower()
                 for next_text in next_texts:
                     if next_text.lower() in link_text:
                         href = link.get('href')
-                        if href:
+                        if href and self._is_pagination_link(href, current_url):
                             next_url = urljoin(current_url, href)
                             print(f"[+] 通过关键词方法找到下一页: {next_url}")
                             return next_url
@@ -280,19 +375,38 @@ class WebpageImageDownloader:
             # 方法 3: 查找 rel="next" 的链接
             next_link = soup.find('a', rel='next')
             if next_link and next_link.get('href'):
-                next_url = urljoin(current_url, next_link['href'])
-                print(f"[+] 通过 rel=next 方法找到下一页: {next_url}")
-                return next_url
+                href = next_link['href']
+                if self._is_pagination_link(href, current_url):
+                    next_url = urljoin(current_url, href)
+                    print(f"[+] 通过 rel=next 方法找到下一页: {next_url}")
+                    return next_url
             
-            # 方法 4: 尝试 URL 模式识别 - 数字递增（仅当未检测到总页数，或下一页仍在范围内时使用）
-            parsed = urlparse(current_url)
-            path = parsed.path
-            current_page_match = re.search(r'/(\d+)(?:/)?$', path)
-            if current_page_match:
-                if total_pages is None or next_page <= total_pages:
+            # 方法 4: URL 模式识别 - 自动推算下一页URL
+            if total_pages is None or next_page <= total_pages:
+                parsed = urlparse(current_url)
+                path = parsed.path
+                query = parsed.query
+                
+                # 4a: 当前 URL 使用 ?page=N 查询参数
+                query_page_match = re.search(r'page=(\d+)', query, re.IGNORECASE)
+                if query_page_match:
+                    new_query = re.sub(r'page=\d+', f'page={next_page}', query, flags=re.IGNORECASE)
+                    next_url = f"{parsed.scheme}://{parsed.netloc}{path}?{new_query}"
+                    print(f"[+] 通过 ?page=N 模式找到下一页: {next_url}")
+                    return next_url
+                
+                # 4b: 当前 URL 没有查询参数，尝试添加 ?page=2
+                if current_page_num == 1 and not query:
+                    next_url = f"{parsed.scheme}://{parsed.netloc}{path}?page={next_page}"
+                    print(f"[+] 通过添加 ?page=N 模式找到下一页: {next_url}")
+                    return next_url
+                
+                # 4c: 当前 URL 路径末尾有页码数字（如 /xiuren/no-9189.html/3）
+                current_page_match = re.search(r'/(\d+)(?:/)?$', path)
+                if current_page_match:
                     next_path = path.replace(f'/{current_page_match.group(1)}', f'/{next_page}')
                     next_url = current_url.replace(path, next_path)
-                    print(f"[+] 通过 URL 模式方法找到下一页: {next_url}")
+                    print(f"[+] 通过 URL 路径页码递增找到下一页: {next_url}")
                     return next_url
             
             print(f"[-] 未找到下一页链接 (当前页: {current_page_num}, 寻找页: {next_page})")
