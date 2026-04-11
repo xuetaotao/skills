@@ -864,7 +864,7 @@ class ReportAgent(BaseAgent):
         code = str(analyzed_data.get(index_name, {}).get("code", ""))
         if code.startswith("."):
             return "美股"
-        if code in {"XAU", "XAG"}:
+        if code in {"XAU", "XAG", "CL", "OIL"}:
             return "大宗商品"
         return "其他"
 

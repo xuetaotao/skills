@@ -23,6 +23,8 @@ INDICES = [
     {"name": "标普500", "code": ".INX", "market": "us"},
     {"name": "伦敦金现", "code": "XAU", "market": "metal"},
     {"name": "伦敦银现", "code": "XAG", "market": "metal"},
+    {"name": "WTI原油", "code": "CL", "market": "metal"},
+    {"name": "布伦特原油", "code": "OIL", "market": "metal"},
 ]
 
 REPORT_CONFIG = {
