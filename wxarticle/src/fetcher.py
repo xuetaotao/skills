@@ -55,6 +55,24 @@ class ArticleFetcher:
             title = title.replace(suffix, '')
         title = title.strip()
         
+        # Get account name (公众号名称)
+        account_name = await self.page.evaluate("""() => {
+            // Try multiple selectors for the account name
+            const el = document.querySelector('#profileBt .profile_meta_value') ||
+                       document.querySelector('.rich_media_meta_nickname .rich_media_nickname') ||
+                       document.querySelector('#js_name') ||
+                       document.querySelector('.profile_nickname');
+            return el ? el.textContent.trim() : '';
+        }""")
+        
+        # Get article publish time
+        publish_time = await self.page.evaluate("""() => {
+            const el = document.querySelector('#publish_time') ||
+                       document.querySelector('.rich_media_meta_primary_link') ||
+                       document.querySelector('.rich_media_meta_text');
+            return el ? el.textContent.trim() : '';
+        }""")
+        
         # Scroll to trigger lazy-loaded images
         await self._scroll_page()
         
@@ -71,6 +89,8 @@ class ArticleFetcher:
         
         return {
             'title': title,
+            'account_name': account_name,
+            'publish_time': publish_time,
             'url': url,
             'page': self.page
         }

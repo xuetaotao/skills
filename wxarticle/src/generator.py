@@ -16,6 +16,21 @@ def sanitize_filename(name: str) -> str:
     return name[:100] if len(name) > 100 else name
 
 
+def _format_publish_time(publish_time: str) -> str:
+    """Format publish time string for use in filename."""
+    if not publish_time:
+        return datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Try to parse common WeChat publish time formats
+    for fmt in ['%Y-%m-%d %H:%M', '%Y-%m-%d', '%Y年%m月%d日 %H:%M', '%Y年%m月%d日']:
+        try:
+            dt = datetime.strptime(publish_time, fmt)
+            return dt.strftime('%Y%m%d_%H%M')
+        except ValueError:
+            continue
+    # If parsing fails, sanitize and use as-is
+    return sanitize_filename(publish_time)
+
+
 class OutputGenerator:
     """Generates PDF and screenshot from article page."""
     
@@ -28,20 +43,26 @@ class OutputGenerator:
         
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
-    async def generate_pdf(self, page: Page, title: str) -> str:
+    async def generate_pdf(self, page: Page, title: str, account_name: str = '', publish_time: str = '') -> str:
         """
         Generate PDF from page.
         
         Args:
             page: Playwright page object
             title: Article title for filename
+            account_name: WeChat account name for filename
+            publish_time: Article publish time for filename
             
         Returns:
             Path to generated PDF file
         """
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        time_str = _format_publish_time(publish_time)
         safe_title = sanitize_filename(title)
-        filename = f"{timestamp}_{safe_title}.pdf"
+        safe_account = sanitize_filename(account_name) if account_name else ''
+        if safe_account:
+            filename = f"{safe_account}-{safe_title}-{time_str}.pdf"
+        else:
+            filename = f"{safe_title}-{time_str}.pdf"
         output_path = self.output_dir / filename
         
         print(f"Generating PDF: {filename}")
@@ -61,20 +82,26 @@ class OutputGenerator:
         print(f"PDF saved: {output_path}")
         return str(output_path)
     
-    async def generate_screenshot(self, page: Page, title: str) -> str:
+    async def generate_screenshot(self, page: Page, title: str, account_name: str = '', publish_time: str = '') -> str:
         """
         Generate full-page screenshot.
         
         Args:
             page: Playwright page object
             title: Article title for filename
+            account_name: WeChat account name for filename
+            publish_time: Article publish time for filename
             
         Returns:
             Path to generated screenshot file
         """
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        time_str = _format_publish_time(publish_time)
         safe_title = sanitize_filename(title)
-        filename = f"{timestamp}_{safe_title}.png"
+        safe_account = sanitize_filename(account_name) if account_name else ''
+        if safe_account:
+            filename = f"{safe_account}-{safe_title}-{time_str}.png"
+        else:
+            filename = f"{safe_title}-{time_str}.png"
         output_path = self.output_dir / filename
         
         print(f"Generating screenshot: {filename}")
@@ -133,7 +160,7 @@ class OutputGenerator:
         print(f"Screenshot saved: {output_path}")
         return str(output_path)
     
-    async def generate_all(self, page: Page, title: str, 
+    async def generate_all(self, page: Page, title: str, account_name: str = '', publish_time: str = '',
                            pdf: bool = True, screenshot: bool = True) -> dict:
         """
         Generate both PDF and screenshot.
@@ -141,6 +168,8 @@ class OutputGenerator:
         Args:
             page: Playwright page object
             title: Article title for filename
+            account_name: WeChat account name for filename
+            publish_time: Article publish time for filename
             pdf: Whether to generate PDF
             screenshot: Whether to generate screenshot
             
@@ -150,9 +179,9 @@ class OutputGenerator:
         result = {}
         
         if pdf:
-            result['pdf'] = await self.generate_pdf(page, title)
+            result['pdf'] = await self.generate_pdf(page, title, account_name, publish_time)
         
         if screenshot:
-            result['screenshot'] = await self.generate_screenshot(page, title)
+            result['screenshot'] = await self.generate_screenshot(page, title, account_name, publish_time)
         
         return result

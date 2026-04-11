@@ -27,12 +27,16 @@ async def async_main(url: str, output_dir: str, pdf: bool, screenshot: bool):
             results = await generator.generate_all(
                 page=article['page'],
                 title=article['title'],
+                account_name=article.get('account_name', ''),
+                publish_time=article.get('publish_time', ''),
                 pdf=pdf,
                 screenshot=screenshot
             )
             
             print("\n" + "=" * 50)
             print("Download completed!")
+            if article.get('account_name'):
+                print(f"Account: {article['account_name']}")
             print(f"Title: {article['title']}")
             if 'pdf' in results:
                 print(f"PDF: {results['pdf']}")
