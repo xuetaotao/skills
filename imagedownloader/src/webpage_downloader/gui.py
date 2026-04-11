@@ -48,6 +48,7 @@ class DownloaderWorker(QThread):
             current_url = self.url
             page_count = 0
             total_downloaded = 0
+            first_html = None
             
             while True:
                 if self._is_stopped:
@@ -65,6 +66,10 @@ class DownloaderWorker(QThread):
                     self.progress.emit("[-] 获取网页失败")
                     break
                 
+                # 保存第一页 HTML 用于生成子目录名
+                if first_html is None:
+                    first_html = html
+                
                 # 提取图片 URL
                 self.progress.emit("[+] 解析图片 URL...")
                 downloader.url = current_url  # 更新当前 URL
@@ -75,6 +80,13 @@ class DownloaderWorker(QThread):
                     break
                 
                 self.progress.emit(f"[+] 第 {page_count} 页找到 {len(image_urls)} 张图片")
+                
+                # 第一次获取到图片时，生成子目录并更新下载器的输出目录
+                if total_downloaded == 0:
+                    subdir_name = downloader.generate_subdir_name(self.url, first_html)
+                    downloader.output_dir = os.path.join(self.output_dir, subdir_name)
+                    os.makedirs(downloader.output_dir, exist_ok=True)
+                    self.progress.emit(f"[+] 输出目录: {os.path.abspath(downloader.output_dir)}")
                 
                 # 下载当前页面的所有图片
                 # 关键：使用全局计数器 downloader.index_counter 来保持编号连续性
@@ -151,7 +163,7 @@ class WebpageDownloaderDialog(QDialog):
         # output dir
         row = QHBoxLayout()
         row.addWidget(QLabel("输出目录:"))
-        self.output_edit = QLineEdit(os.path.join(os.getcwd(), "output", "webpage"))
+        self.output_edit = QLineEdit(os.path.join(os.getcwd(), "output"))
         row.addWidget(self.output_edit)
         self.btn_browse = QPushButton("浏览")
         self.btn_browse.clicked.connect(self._browse)
@@ -249,11 +261,6 @@ class WebpageDownloaderDialog(QDialog):
         output = self.output_edit.text().strip()
         if not output:
             QMessageBox.warning(self, "提示", "请先选择输出目录")
-            return
-        try:
-            os.makedirs(output, exist_ok=True)
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"无法创建输出目录: {e}")
             return
 
         num_threads = int(self.spin_threads.value())

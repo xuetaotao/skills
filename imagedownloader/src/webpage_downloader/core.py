@@ -6,10 +6,12 @@
 
 import os
 import sys
+import re
 import argparse
 import requests
 from urllib.parse import urljoin, urlparse
 from pathlib import Path
+from datetime import datetime
 import time
 from bs4 import BeautifulSoup
 from threading import Thread, Lock
@@ -23,7 +25,7 @@ class WebpageImageDownloader:
         
         Args:
             url: 网页地址
-            output_dir: 输出目录
+            output_dir: 输出根目录，实际文件保存到 output_dir/{子目录名}/ 下
             num_threads: 并发下载线程数
             timeout: 下载超时时间（秒）
             use_sequential_naming: 是否使用递增编号命名 (001, 002, ...) 默认True
@@ -31,15 +33,13 @@ class WebpageImageDownloader:
             max_pages: 最多下载的页数 默认None（无限制）
         """
         self.url = url
-        self.output_dir = output_dir
+        self.output_base_dir = output_dir
+        self.output_dir = output_dir  # 实际下载目录，在 run() 中根据网页信息动态生成
         self.num_threads = num_threads
         self.timeout = timeout
         self.use_sequential_naming = use_sequential_naming
         self.auto_pagination = auto_pagination
         self.max_pages = max_pages
-        
-        # 创建输出目录
-        os.makedirs(output_dir, exist_ok=True)
         
         # 下载统计
         self.download_queue = Queue()
@@ -57,6 +57,44 @@ class WebpageImageDownloader:
             'Referer': url,  # 关键：添加 Referer 绕过防盗链
             'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
         }
+    
+    @staticmethod
+    def generate_subdir_name(url, html_content=None):
+        """
+        根据网页信息生成子目录名
+        
+        格式: {域名}-{标题前20字}-{时间}
+        示例: github.com-BeautifulSoup文档-20260411_220700
+        """
+        # 提取域名
+        parsed = urlparse(url)
+        domain = parsed.netloc
+        # 去掉 www. 前缀
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        
+        # 提取标题
+        title_part = ""
+        if html_content:
+            try:
+                soup = BeautifulSoup(html_content, 'html.parser')
+                title_tag = soup.find('title')
+                if title_tag:
+                    raw_title = title_tag.get_text(strip=True)
+                    # 清洗：移除特殊字符、多余空白、文件系统非法字符
+                    cleaned = re.sub(r'[\\/:*?"<>|]', '', raw_title)
+                    cleaned = re.sub(r'\s+', '_', cleaned)
+                    # 截取前 20 个字符
+                    title_part = cleaned[:20].rstrip('_')
+            except Exception:
+                pass
+        
+        # 时间戳
+        time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # 组合
+        parts = [p for p in [domain, title_part, time_str] if p]
+        return '-'.join(parts)
     
     def fetch_webpage(self):
         """获取网页内容"""
@@ -302,7 +340,7 @@ class WebpageImageDownloader:
         print("网页图片下载工具")
         print("=" * 60)
         print(f"网页地址: {self.url}")
-        print(f"输出目录: {os.path.abspath(self.output_dir)}")
+        print(f"输出根目录: {os.path.abspath(self.output_base_dir)}")
         print(f"线程数: {self.num_threads}")
         print(f"自动翻页: {'是' if self.auto_pagination else '否'}")
         if self.auto_pagination and self.max_pages:
@@ -313,6 +351,7 @@ class WebpageImageDownloader:
         current_url = self.url
         page_count = 0
         all_image_urls = []
+        first_html = None
         
         while current_url and (self.max_pages is None or page_count < self.max_pages):
             page_count += 1
@@ -323,6 +362,10 @@ class WebpageImageDownloader:
             if not html_content:
                 print("[-] 无法获取网页内容")
                 break
+            
+            # 保存第一页 HTML 用于生成子目录名
+            if first_html is None:
+                first_html = html_content
             
             # 提取图片URL
             image_urls = self.extract_image_urls(html_content)
@@ -348,6 +391,12 @@ class WebpageImageDownloader:
         if not all_image_urls:
             print("[-] 未找到任何图片，退出")
             return False
+        
+        # 根据网页信息生成子目录名，创建实际输出目录
+        subdir_name = self.generate_subdir_name(self.url, first_html)
+        self.output_dir = os.path.join(self.output_base_dir, subdir_name)
+        os.makedirs(self.output_dir, exist_ok=True)
+        print(f"\n[+] 输出目录: {os.path.abspath(self.output_dir)}")
         
         # 开始下载（不阻塞，下载在后台进行）
         start_time = time.time()
@@ -392,7 +441,7 @@ def main():
     )
     
     parser.add_argument("url", help="网页地址 (URL)")
-    parser.add_argument("-o", "--output", default="./output/webpage", help="输出目录 (默认: ./output/webpage)")
+    parser.add_argument("-o", "--output", default="./output", help="输出目录 (默认: ./output)")
     parser.add_argument("-j", "--num-threads", type=int, default=4, help="并发线程数 (默认: 4)")
     parser.add_argument("-t", "--timeout", type=int, default=10, help="下载超时时间，单位秒 (默认: 10)")
     parser.add_argument("--keep-names", action="store_true", help="保留原文件名 (默认使用递增编号)")

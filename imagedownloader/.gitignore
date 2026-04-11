@@ -27,12 +27,7 @@ ENV/
 env/
 
 # Output files
-output/**
-!output/.gitkeep
-!output/search/
-!output/search/.gitkeep
-!output/webpage/
-!output/webpage/.gitkeep
+output/
 
 # IDE
 .idea/
