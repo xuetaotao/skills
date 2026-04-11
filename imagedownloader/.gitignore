@@ -36,6 +36,9 @@ output/
 *.swo
 *~
 
+# Test files
+test_sites.md
+
 # OS
 .DS_Store
 Thumbs.db
