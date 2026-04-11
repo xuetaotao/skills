@@ -79,10 +79,56 @@ class OutputGenerator:
         
         print(f"Generating screenshot: {filename}")
         
-        await page.screenshot(
-            path=str(output_path),
-            full_page=True
-        )
+        # Get the article area (title + content), excluding footer
+        article_box = await page.evaluate("""() => {
+            // Find title element
+            const titleEl = document.querySelector('#activity_name') || 
+                           document.querySelector('.rich_media_title') ||
+                           document.querySelector('h1.rich_media_title');
+            
+            // Find content element
+            const contentEl = document.querySelector('#js_content');
+            
+            if (!contentEl) return null;
+            
+            const contentRect = contentEl.getBoundingClientRect();
+            
+            // Start from top of page (0) to include title, or from title if found
+            let startY = 0;
+            if (titleEl) {
+                const titleRect = titleEl.getBoundingClientRect();
+                startY = Math.max(0, titleRect.top - 20);  // 20px padding above title
+            }
+            
+            // End at bottom of content
+            const endY = contentRect.bottom;
+            
+            // Use full page width
+            const pageWidth = Math.max(
+                document.documentElement.scrollWidth,
+                document.body.scrollWidth
+            );
+            
+            return {
+                x: 0,
+                y: startY,
+                width: pageWidth,
+                height: endY - startY + 50  // 50px padding below content
+            };
+        }""")
+        
+        if article_box:
+            await page.screenshot(
+                path=str(output_path),
+                clip=article_box,
+                full_page=False
+            )
+        else:
+            # Fallback to full page screenshot
+            await page.screenshot(
+                path=str(output_path),
+                full_page=True
+            )
         
         print(f"Screenshot saved: {output_path}")
         return str(output_path)
