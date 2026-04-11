@@ -146,28 +146,74 @@ class WebpageImageDownloader:
             print(f"[-] 解析图片URL失败: {e}")
             return []
     
-    def find_next_page_url(self, html_content, current_url):
-        """从HTML中查找下一页的URL"""
+    def detect_total_pages(self, html_content, current_url):
+        """
+        从HTML中检测总页数
+        
+        通过解析分页导航中的最大页码来确定总页数。
+        支持多种分页格式：PageX、纯数字、/page/X 等。
+        """
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
-            import re
-            from urllib.parse import urlparse
+            all_links = soup.find_all('a')
             
-            # 提取当前 URL 中的页码
-            parsed = urlparse(current_url)
-            path = parsed.path
+            max_page = 1
+            page_pattern = re.compile(r'^(\d+)$')
             
-            # 检查 URL 末尾的页码（如 .html/2 或 /page/2）
-            current_page_match = re.search(r'/(\d+)(?:/)?$', path)
-            if current_page_match:
-                current_page = int(current_page_match.group(1))
-            else:
-                current_page = 1
+            for link in all_links:
+                link_text = link.get_text(strip=True)
+                
+                # 匹配纯数字页码（如 "1", "2", "17"）
+                match = page_pattern.match(link_text)
+                if match:
+                    page_num = int(match.group(1))
+                    if page_num > max_page:
+                        max_page = page_num
+                    continue
+                
+                # 匹配 "PageX" 格式（如 "Page2", "Page17"）
+                page_match = re.match(r'^Page(\d+)$', link_text, re.IGNORECASE)
+                if page_match:
+                    page_num = int(page_match.group(1))
+                    if page_num > max_page:
+                        max_page = page_num
+                    continue
+                
+                # 从 href 中匹配页码模式（如 /2, /page/2, .html/2）
+                href = link.get('href', '')
+                if href:
+                    href_page_match = re.search(r'(?:/page/|\.html/|/)(\d+)/?$', href)
+                    if href_page_match:
+                        page_num = int(href_page_match.group(1))
+                        if page_num > max_page:
+                            max_page = page_num
             
-            next_page = current_page + 1
+            print(f"[+] 检测到总页数: {max_page}")
+            return max_page
+        except Exception as e:
+            print(f"[-] 检测总页数失败: {e}，将不限制页数")
+            return None
+    
+    def find_next_page_url(self, html_content, current_url, current_page_num, total_pages=None):
+        """从HTML中查找下一页的URL
+        
+        Args:
+            html_content: 页面HTML内容
+            current_url: 当前页面URL
+            current_page_num: 当前页码（由调用方维护）
+            total_pages: 检测到的总页数，None表示未检测到
+        """
+        try:
+            # 如果已知总页数，且当前已是最后一页，直接返回
+            if total_pages is not None and current_page_num >= total_pages:
+                print(f"[+] 已到最后一页 (当前: {current_page_num}/{total_pages})，停止翻页")
+                return None
+            
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            next_page = current_page_num + 1
             
             # 方法 1: 查找文本为 "PageX" 的链接（如 "Page2", "Page3"）
-            # 使用 find_all 和循环而不是 find，因为 find 对某些文本模式不准确
             all_links = soup.find_all('a')
             for link in all_links:
                 link_text = link.get_text(strip=True)
@@ -197,15 +243,18 @@ class WebpageImageDownloader:
                 print(f"[+] 通过 rel=next 方法找到下一页: {next_url}")
                 return next_url
             
-            # 方法 4: 尝试 URL 模式识别 - 数字递增
+            # 方法 4: 尝试 URL 模式识别 - 数字递增（仅当未检测到总页数，或下一页仍在范围内时使用）
+            parsed = urlparse(current_url)
+            path = parsed.path
+            current_page_match = re.search(r'/(\d+)(?:/)?$', path)
             if current_page_match:
-                # 当前 URL 末尾有数字，尝试替换为下一个数字
-                next_path = path.replace(f'/{current_page}', f'/{next_page}')
-                next_url = current_url.replace(path, next_path)
-                print(f"[+] 通过 URL 模式方法找到下一页: {next_url}")
-                return next_url
+                if total_pages is None or next_page <= total_pages:
+                    next_path = path.replace(f'/{current_page_match.group(1)}', f'/{next_page}')
+                    next_url = current_url.replace(path, next_path)
+                    print(f"[+] 通过 URL 模式方法找到下一页: {next_url}")
+                    return next_url
             
-            print(f"[-] 未找到下一页链接 (当前页: {current_page}, 寻找页: {next_page})")
+            print(f"[-] 未找到下一页链接 (当前页: {current_page_num}, 寻找页: {next_page})")
             return None
         except Exception as e:
             print(f"[-] 查找下一页失败: {e}")
@@ -350,12 +399,21 @@ class WebpageImageDownloader:
         # 多页下载逻辑
         current_url = self.url
         page_count = 0
+        current_page_num = 1  # 当前页码
+        total_pages = None     # 检测到的总页数
         all_image_urls = []
         first_html = None
+        visited_urls = set()   # 已访问的URL，用于循环检测
         
         while current_url and (self.max_pages is None or page_count < self.max_pages):
+            # 循环检测：如果URL已访问过，说明翻页回绕了
+            if current_url in visited_urls:
+                print(f"[+] 检测到页面循环 (URL已访问过)，停止翻页")
+                break
+            visited_urls.add(current_url)
+            
             page_count += 1
-            print(f"\n[*] 正在处理第 {page_count} 页: {current_url}")
+            print(f"\n[*] 正在处理第 {page_count} 页 (页码: {current_page_num}): {current_url}")
             
             # 获取网页
             html_content = self.fetch_webpage()
@@ -366,6 +424,9 @@ class WebpageImageDownloader:
             # 保存第一页 HTML 用于生成子目录名
             if first_html is None:
                 first_html = html_content
+                # 在第一页检测总页数
+                if self.auto_pagination:
+                    total_pages = self.detect_total_pages(html_content, current_url)
             
             # 提取图片URL
             image_urls = self.extract_image_urls(html_content)
@@ -379,14 +440,16 @@ class WebpageImageDownloader:
                 break
             
             # 查找下一页
-            next_url = self.find_next_page_url(html_content, current_url)
+            next_url = self.find_next_page_url(html_content, current_url, current_page_num, total_pages)
             if not next_url or next_url == current_url:
                 print("[+] 已到最后一页，停止翻页")
                 break
             
             current_url = next_url
+            current_page_num += 1
             # 更新 self.url 以便查找相对链接时使用正确的基准URL
             self.url = next_url
+            self.headers['Referer'] = next_url
         
         if not all_image_urls:
             print("[-] 未找到任何图片，退出")
