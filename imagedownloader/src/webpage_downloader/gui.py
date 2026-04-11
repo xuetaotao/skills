@@ -21,7 +21,7 @@ class DownloaderWorker(QThread):
     finished = pyqtSignal(bool)
 
     def __init__(self, url, output_dir, num_threads, timeout, use_sequential_naming=True, 
-                 auto_pagination=True, max_pages=None, parent=None):
+                 auto_pagination=True, max_pages=None, min_image_size_kb=0, parent=None):
         super().__init__(parent)
         self.url = url
         self.output_dir = output_dir
@@ -30,6 +30,7 @@ class DownloaderWorker(QThread):
         self.use_sequential_naming = use_sequential_naming
         self.auto_pagination = auto_pagination
         self.max_pages = max_pages
+        self.min_image_size_kb = min_image_size_kb
         self._is_stopped = False
 
     def run(self):
@@ -41,14 +42,18 @@ class DownloaderWorker(QThread):
                 self.timeout,
                 use_sequential_naming=self.use_sequential_naming,
                 auto_pagination=self.auto_pagination,
-                max_pages=self.max_pages
+                max_pages=self.max_pages,
+                min_image_size_kb=self.min_image_size_kb
             )
 
             # 使用多页下载逻辑（支持自动翻页）
             current_url = self.url
             page_count = 0
+            current_page_num = 1
+            total_pages = None
             total_downloaded = 0
             first_html = None
+            visited_urls = set()
             
             while True:
                 if self._is_stopped:
@@ -56,8 +61,14 @@ class DownloaderWorker(QThread):
                     self.finished.emit(False)
                     return
                 
+                # 循环检测
+                if current_url in visited_urls:
+                    self.progress.emit("[+] 检测到页面循环，停止翻页")
+                    break
+                visited_urls.add(current_url)
+                
                 page_count += 1
-                self.progress.emit(f"\n[*] 正在处理第 {page_count} 页...")
+                self.progress.emit(f"\n[*] 正在处理第 {page_count} 页 (页码: {current_page_num})...")
                 
                 # 获取当前页面的 HTML
                 self.progress.emit(f"[+] 请求网页: {current_url}")
@@ -66,9 +77,11 @@ class DownloaderWorker(QThread):
                     self.progress.emit("[-] 获取网页失败")
                     break
                 
-                # 保存第一页 HTML 用于生成子目录名
+                # 保存第一页 HTML 用于生成子目录名，并检测总页数
                 if first_html is None:
                     first_html = html
+                    if self.auto_pagination:
+                        total_pages = downloader.detect_total_pages(html, current_url)
                 
                 # 提取图片 URL
                 self.progress.emit("[+] 解析图片 URL...")
@@ -89,19 +102,20 @@ class DownloaderWorker(QThread):
                     self.progress.emit(f"[+] 输出目录: {os.path.abspath(downloader.output_dir)}")
                 
                 # 下载当前页面的所有图片
-                # 关键：使用全局计数器 downloader.index_counter 来保持编号连续性
                 for relative_index, url in enumerate(image_urls):
                     if self._is_stopped:
                         self.progress.emit("[!] 已取消")
                         self.finished.emit(False)
                         return
                     
-                    # 使用全局计数器保持编号连续
                     global_index = downloader.index_counter + relative_index
                     filename = downloader.get_image_filename(url, global_index)
                     ok = downloader.download_image(url, filename)
-                    total_downloaded += 1
-                    status = '✓' if ok else '✗'
+                    if ok:
+                        total_downloaded += 1
+                        status = '✓'
+                    else:
+                        status = '✗'
                     self.progress.emit(f"[{total_downloaded}] {status} {filename}")
                 
                 # 更新计数器
@@ -119,7 +133,7 @@ class DownloaderWorker(QThread):
                 
                 # 查找下一页的 URL
                 self.progress.emit("[*] 查找下一页链接...")
-                next_url = downloader.find_next_page_url(html, current_url)
+                next_url = downloader.find_next_page_url(html, current_url, current_page_num, total_pages)
                 
                 if not next_url:
                     self.progress.emit("[+] 没有找到下一页链接，下载完成")
@@ -127,6 +141,9 @@ class DownloaderWorker(QThread):
                 
                 self.progress.emit(f"[+] 找到下一页: {next_url}")
                 current_url = next_url
+                current_page_num += 1
+                downloader.url = next_url
+                downloader.headers['Referer'] = next_url
             
             self.progress.emit(f"\n[+] 下载完成！总共下载 {total_downloaded} 张图片")
             self.finished.emit(True)
@@ -196,6 +213,24 @@ class WebpageDownloaderDialog(QDialog):
         row.addWidget(self.check_sequential)
         layout.addLayout(row)
 
+        # image size filter
+        row = QHBoxLayout()
+        self.check_min_size = QCheckBox("过滤小图片 (小于指定大小的图片将被跳过)")
+        self.check_min_size.setChecked(False)
+        self.check_min_size.setToolTip("启用后将过滤掉头像、图标等小图片\n建议阈值: 10~20KB")
+        self.check_min_size.stateChanged.connect(self._on_min_size_toggled)
+        row.addWidget(self.check_min_size)
+        
+        row.addWidget(QLabel("最小大小(KB):"))
+        self.spin_min_size = QSpinBox()
+        self.spin_min_size.setMinimum(1)
+        self.spin_min_size.setMaximum(10240)
+        self.spin_min_size.setValue(10)
+        self.spin_min_size.setEnabled(False)
+        self.spin_min_size.setToolTip("小于此大小的图片将被跳过，建议 10~20KB")
+        row.addWidget(self.spin_min_size)
+        layout.addLayout(row)
+
         # pagination option
         row = QHBoxLayout()
         self.check_auto_pagination = QCheckBox("自动翻页下载 (默认启用)")
@@ -252,6 +287,11 @@ class WebpageDownloaderDialog(QDialog):
         """翻页复选框状态改变时的回调"""
         is_checked = self.check_auto_pagination.isChecked()
         self.spin_max_pages.setEnabled(is_checked)
+    
+    def _on_min_size_toggled(self):
+        """最小大小复选框状态改变时的回调"""
+        is_checked = self.check_min_size.isChecked()
+        self.spin_min_size.setEnabled(is_checked)
 
     def _on_start(self):
         url = self.url_edit.text().strip()
@@ -269,6 +309,7 @@ class WebpageDownloaderDialog(QDialog):
         auto_pagination = self.check_auto_pagination.isChecked()
         max_pages_value = int(self.spin_max_pages.value())
         max_pages = None if max_pages_value == 0 else max_pages_value
+        min_image_size_kb = int(self.spin_min_size.value()) if self.check_min_size.isChecked() else 0
 
         # disable start, enable cancel
         self.btn_start.setEnabled(False)
@@ -276,7 +317,7 @@ class WebpageDownloaderDialog(QDialog):
 
         # create worker
         self.worker = DownloaderWorker(url, output, num_threads, timeout, use_sequential, 
-                                       auto_pagination, max_pages)
+                                       auto_pagination, max_pages, min_image_size_kb)
         self.worker.progress.connect(self._append_log)
         self.worker.finished.connect(self._on_finished)
         self.worker.start()

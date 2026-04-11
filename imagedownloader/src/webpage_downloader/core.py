@@ -19,7 +19,7 @@ from queue import Queue
 
 class WebpageImageDownloader:
     def __init__(self, url, output_dir, num_threads=4, timeout=10, use_sequential_naming=True, 
-                 auto_pagination=True, max_pages=None):
+                 auto_pagination=True, max_pages=None, min_image_size_kb=0):
         """
         初始化网页图片下载器
         
@@ -31,6 +31,7 @@ class WebpageImageDownloader:
             use_sequential_naming: 是否使用递增编号命名 (001, 002, ...) 默认True
             auto_pagination: 是否自动翻页下载 默认True
             max_pages: 最多下载的页数 默认None（无限制）
+            min_image_size_kb: 最小图片大小阈值（KB），小于此值的图片将被过滤掉 默认0（不过滤）
         """
         self.url = url
         self.output_base_dir = output_dir
@@ -40,6 +41,7 @@ class WebpageImageDownloader:
         self.use_sequential_naming = use_sequential_naming
         self.auto_pagination = auto_pagination
         self.max_pages = max_pages
+        self.min_image_size_kb = min_image_size_kb
         
         # 下载统计
         self.download_queue = Queue()
@@ -108,6 +110,37 @@ class WebpageImageDownloader:
             print(f"[-] 获取网页失败: {e}")
             return None
     
+    def _is_small_icon_image(self, img_tag):
+        """
+        通过HTML属性判断是否为小图标/UI元素图片
+        
+        过滤条件：
+        - width/height 属性值小于 50px 的
+        - class 或 id 包含 icon/logo/avatar/btn/button/arrow/nav 等关键词的
+        """
+        # 检查 width/height 属性
+        for attr in ['width', 'height']:
+            val = img_tag.get(attr, '')
+            if val:
+                # 提取数值（可能带 px 等单位）
+                num_match = re.match(r'^(\d+)', str(val))
+                if num_match and int(num_match.group(1)) < 50:
+                    return True
+        
+        # 检查 class 和 id 中的小图标关键词
+        skip_keywords = ['icon', 'logo', 'avatar', 'btn', 'button', 'arrow', 'nav', 
+                         'emoji', 'smiley', 'loading', 'placeholder', 'lazy', 'badge',
+                         'favicon', 'gravatar', 'thumbnail']
+        for attr in ['class', 'id']:
+            val = img_tag.get(attr, '')
+            if val:
+                val_lower = ' '.join(val) if isinstance(val, list) else str(val).lower()
+                for keyword in skip_keywords:
+                    if keyword in val_lower:
+                        return True
+        
+        return False
+    
     def extract_image_urls(self, html_content):
         """从HTML中提取所有图片URL"""
         print("[*] 正在解析图片URL...")
@@ -118,8 +151,14 @@ class WebpageImageDownloader:
             
             image_urls = []
             seen_urls = set()  # 去重
+            skipped_count = 0  # 被HTML属性过滤掉的图片数
             
             for img in img_tags:
+                # 通过HTML属性过滤小图标/UI元素
+                if self._is_small_icon_image(img):
+                    skipped_count += 1
+                    continue
+                
                 # 优先使用懒加载属性（这些属性包含真实的图片URL）
                 # 支持多种懒加载方式：data-original、data-src、data-lazy-src、src
                 src = (img.get('data-original') or 
@@ -140,6 +179,8 @@ class WebpageImageDownloader:
                         image_urls.append(absolute_url)
                         seen_urls.add(absolute_url)
             
+            if skipped_count > 0:
+                print(f"[*] 已通过HTML属性过滤掉 {skipped_count} 张小图标/UI图片")
             print(f"[+] 找到 {len(image_urls)} 张图片")
             return image_urls
         except Exception as e:
@@ -327,12 +368,17 @@ class WebpageImageDownloader:
             response = requests.get(image_url, timeout=self.timeout, headers=self.headers)
             response.raise_for_status()
             
+            file_size = len(response.content)
+            
+            # 文件大小过滤：如果设置了最小大小阈值，且文件小于阈值，则跳过
+            if self.min_image_size_kb > 0 and file_size < self.min_image_size_kb * 1024:
+                print(f"[~] 跳过小图片: {filename} ({file_size} bytes < {self.min_image_size_kb}KB)")
+                return True  # 返回True避免计入失败，但也不计入成功
+            
             filepath = os.path.join(self.output_dir, filename)
             
             with open(filepath, 'wb') as f:
                 f.write(response.content)
-            
-            file_size = len(response.content)
             
             with self.lock:
                 self.downloaded_count += 1
@@ -500,6 +546,7 @@ def main():
   python webpage_image_downloader.py "https://example.com/page.html" -o ./downloads -j 8 -t 15
   python webpage_image_downloader.py "https://example.com/page.html" -o ./downloads --keep-names
   python webpage_image_downloader.py "https://example.com/page.html" -o ./downloads --auto-pagination -m 10
+  python webpage_image_downloader.py "https://example.com/page.html" -o ./downloads --min-size 10
         """
     )
     
@@ -510,6 +557,7 @@ def main():
     parser.add_argument("--keep-names", action="store_true", help="保留原文件名 (默认使用递增编号)")
     parser.add_argument("--auto-pagination", action="store_true", help="自动翻页下载 (默认关闭)")
     parser.add_argument("-m", "--max-pages", type=int, default=None, help="最多下载的页数 (默认无限制)")
+    parser.add_argument("--min-size", type=int, default=0, help="最小图片大小阈值(KB)，小于此值的图片将被过滤 (默认: 0，不过滤)")
     
     args = parser.parse_args()
     
@@ -520,7 +568,8 @@ def main():
         timeout=args.timeout,
         use_sequential_naming=not args.keep_names,
         auto_pagination=args.auto_pagination,
-        max_pages=args.max_pages
+        max_pages=args.max_pages,
+        min_image_size_kb=args.min_size
     )
     
     success = downloader.run()
