@@ -141,6 +141,60 @@ class WebpageImageDownloader:
         
         return False
     
+    def _is_in_excluded_area(self, img_tag):
+        """
+        判断图片是否位于推荐/侧边栏/评论等非正文区域
+        
+        通过检查 img 的祖先容器的 class/id 来判断。
+        正文图片通常在 article/content/entry 等容器中，
+        而推荐图片在 sidebar/recommend/related/thumb 等容器中。
+        """
+        # 推荐区域的关键词：这些容器中的图片通常不是正文内容
+        exclude_keywords = [
+            'sidebar', 'widget', 'recommend', 'related', 'similar', 
+            'suggest', 'popular', 'trending', 'recent', 'latest',
+            'comment', 'footer', 'header', 'aside', 'extra',
+            'bottom-article', 'more-article', 'other-article',
+            'item-thumb', 'thumb-list', 'card-list',
+            'advertisement', 'ad-', 'sponsor',
+        ]
+        
+        # 正文区域的关键词：如果祖先容器有这些，即使也有 exclude 关键词也优先视为正文
+        content_keywords = [
+            'article-fulltext', 'article-content', 'article-body',
+            'entry-content', 'entry-body', 'post-content', 'post-body',
+            'content-body', 'main-content', 'main-body',
+        ]
+        
+        parent = img_tag.parent
+        depth = 0
+        has_content_container = False
+        
+        while parent and depth < 10:
+            if parent.name in ['div', 'section', 'article', 'aside', 'nav', 'footer', 'header', 'main']:
+                cls = parent.get('class', [])
+                pid = parent.get('id', '')
+                cls_str = ' '.join(cls) if isinstance(cls, list) else str(cls)
+                combined = (cls_str + ' ' + pid).lower()
+                
+                # 检查是否在正文容器中
+                for kw in content_keywords:
+                    if kw in combined:
+                        has_content_container = True
+                        break
+                
+                # 检查是否在排除区域中
+                for kw in exclude_keywords:
+                    if kw in combined:
+                        # 如果同时有正文容器标记，优先视为正文
+                        if not has_content_container:
+                            return True
+            
+            parent = parent.parent
+            depth += 1
+        
+        return False
+    
     def extract_image_urls(self, html_content):
         """从HTML中提取所有图片URL"""
         print("[*] 正在解析图片URL...")
@@ -156,6 +210,11 @@ class WebpageImageDownloader:
             for img in img_tags:
                 # 通过HTML属性过滤小图标/UI元素
                 if self._is_small_icon_image(img):
+                    skipped_count += 1
+                    continue
+                
+                # 过滤推荐/侧边栏等非正文区域的图片
+                if self._is_in_excluded_area(img):
                     skipped_count += 1
                     continue
                 
