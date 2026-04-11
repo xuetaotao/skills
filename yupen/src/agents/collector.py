@@ -161,7 +161,8 @@ class DataSourceManager:
             return None
 
         try:
-            bs_code = f"sh.{code}"
+            bs_market = "sh" if market == "sh" else "sz"
+            bs_code = f"{bs_market}.{code}"
             rs = bs.query_history_k_data_plus(
                 bs_code,
                 'date,open,high,low,close,volume',
@@ -227,7 +228,7 @@ class DataSourceManager:
         import akshare as ak
 
         symbol = f"{market}{code}"
-        df = ak.stock_zh_index_daily(symbol=symbol)
+        df = ak.stock_zh_index_daily_tx(symbol=symbol)
 
         if df is None or len(df) == 0:
             return None
