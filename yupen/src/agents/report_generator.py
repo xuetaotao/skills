@@ -671,30 +671,7 @@ class ReportAgent(BaseAgent):
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="label">整体趋势</div>
-                <div class="value">{summary.get('整体趋势', '未知')}</div>
-                <div class="trend {'up' if '强势' in summary.get('整体趋势', '') or '偏强' in summary.get('整体趋势', '') else 'down' if '弱' in summary.get('整体趋势', '') else 'neutral'}">
-                    {summary.get('市场情绪', '未知')}
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="label">YES 指数</div>
-                <div class="value yes-count">{summary.get('YES数量', 0)}</div>
-                <div class="trend up">线上持有</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">NO 指数</div>
-                <div class="value no-count">{summary.get('NO数量', 0)}</div>
-                <div class="trend down">线下观望</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">最强指数</div>
-                <div class="value" style="font-size: 1.5em;">{summary.get('最强指数', '无')}</div>
-                <div class="trend up">{summary.get('最强偏离度', '0.00%')}</div>
-            </div>
-        </div>
+
 
         <div class="section">
             <div class="section-header">
@@ -711,9 +688,11 @@ class ReportAgent(BaseAgent):
             <h2 class="section-title">💡 操作建议</h2>
             <div class="highlight-box">
                 <h3>市场综合分析</h3>
-                <p>当前市场 <span class="yes-count">{summary.get('YES数量', 0)}</span> 个指数在20日线上，
+                <p>整体趋势：<strong>{summary.get('整体趋势', '未知')}</strong>（{summary.get('市场情绪', '未知')}）</p>
+                <p style="margin-top: 8px;">当前市场 <span class="yes-count">{summary.get('YES数量', 0)}</span> 个指数在20日线上，
                    <span class="no-count">{summary.get('NO数量', 0)}</span> 个指数在20日线下。</p>
-                <p style="margin-top: 10px;">平均偏离度：<strong>{summary.get('平均偏离度', '0.00%')}</strong></p>
+                <p style="margin-top: 8px;">最强指数：<strong>{summary.get('最强指数', '无')}</strong>（{summary.get('最强偏离度', '0.00%')}）</p>
+                <p style="margin-top: 8px;">平均偏离度：<strong>{summary.get('平均偏离度', '0.00%')}</strong></p>
             </div>
             {self._generate_brief_interpretation_html(summary)}
             <h3 style="margin: 20px 0 15px 0;">强势指数（可关注）</h3>
@@ -1110,9 +1089,10 @@ class ReportAgent(BaseAgent):
 
         return f"""
             <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea;">
-                <h4 style="color: #2c3e50; margin-bottom: 15px;">📝 简要解读</h4>
+                <h4 style="color: #2c3e50; margin-bottom: 15px;">🧭 操作建议</h4>
                 <ul style="list-style: none; padding: 0; margin: 0;">
                     {"".join(items)}
                 </ul>
             </div>
         """
+

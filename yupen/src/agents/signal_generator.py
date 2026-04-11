@@ -155,7 +155,7 @@ class SignalGeneratorAgent(BaseAgent):
         }
 
     def _generate_brief_interpretation(self, summary: Dict[str, Any], ranked_signals: List[Dict[str, Any]]) -> List[str]:
-        interpretations = []
+        suggestions: List[str] = []
 
         yes_count = summary.get("YES数量", 0)
         no_count = summary.get("NO数量", 0)
@@ -165,27 +165,40 @@ class SignalGeneratorAgent(BaseAgent):
         yes_signals = [s for s in valid_signals if s.get("状态") == "YES"]
         no_signals = [s for s in valid_signals if s.get("状态") == "NO"]
 
-        if yes_count > 0 and yes_signals:
-            top_yes = yes_signals[0]
-            interpretations.append(f"相对强势: {top_yes['指数名称']}目前价格在MA20上方，技术面相对较好")
-            if len(yes_signals) > 1:
-                other_yes = "、".join([s['指数名称'] for s in yes_signals[1:4]])
-                interpretations.append(f"其他强势指数: {other_yes}")
+        if total == 0:
+            return ["数据不足，建议先修复数据源后再做交易决策。"]
 
-        if no_count > 0:
-            if no_count >= total * 0.7:
-                interpretations.append(f"整体偏弱: 大部分指数({no_count}个)都在均线下方运行，市场处于调整状态")
-            elif no_count >= total * 0.5:
-                interpretations.append(f"市场分化: {no_count}个指数在均线下方，需谨慎操作")
+        yes_ratio = yes_count / total
 
-        large_deviation_signals = [s for s in no_signals if s.get("偏离度") is not None and s["偏离度"] < -0.1]
-        if large_deviation_signals:
-            names = "、".join([s['指数名称'] for s in large_deviation_signals[:3]])
-            interpretations.append(f"超跌关注: {names}偏离度较大，可能存在超跌反弹机会")
+        if yes_ratio >= 0.7:
+            suggestions.append("仓位建议：可保持偏高仓位，以持有和顺势加仓为主。")
+        elif yes_ratio >= 0.5:
+            suggestions.append("仓位建议：维持中性偏多仓位，优先持有强势标的，新增仓位分批进行。")
+        elif yes_ratio >= 0.3:
+            suggestions.append("仓位建议：控制在中低仓位，减小进攻性仓位，耐心等待更清晰信号。")
+        else:
+            suggestions.append("仓位建议：以防守为主，降低总体仓位，优先保留现金。")
+
+        if yes_signals:
+            leaders = "、".join([s["指数名称"] for s in yes_signals[:3]])
+            suggestions.append(f"方向建议：重点跟踪强势指数 {leaders}，仅在回踩关键均线后考虑分批介入。")
+
+        if no_signals:
+            laggards = "、".join([s["指数名称"] for s in no_signals[:3]])
+            suggestions.append(f"风控建议：对弱势指数 {laggards} 以减仓/观望为主，避免逆势补仓。")
 
         strong_deviation = [s for s in yes_signals if s.get("偏离度") is not None and s["偏离度"] > 0.03]
         if strong_deviation:
-            names = "、".join([s['指数名称'] for s in strong_deviation[:3]])
-            interpretations.append(f"强势追涨: {names}偏离度较高，趋势强劲但需注意回调风险")
+            names = "、".join([s["指数名称"] for s in strong_deviation[:3]])
+            suggestions.append(f"节奏建议：{names} 已明显偏离均线，避免追高，优先等待回撤后的低风险位置。")
 
-        return interpretations
+        oversold_signals = [s for s in no_signals if s.get("偏离度") is not None and s["偏离度"] < -0.1]
+        if oversold_signals:
+            names = "、".join([s["指数名称"] for s in oversold_signals[:3]])
+            suggestions.append(f"交易纪律：{names} 如需博弈反弹，仅建议小仓位试错并设置明确止损。")
+
+        failed_count = summary.get("数据获取失败", 0)
+        if failed_count:
+            suggestions.append(f"执行提醒：当前有 {failed_count} 个指数数据异常，重要操作前请先确认数据完整性。")
+
+        return suggestions
