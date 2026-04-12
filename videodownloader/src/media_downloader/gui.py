@@ -411,6 +411,21 @@ class MediaDownloaderDialog(QDialog):
             QMessageBox.warning(self, "提示", "请先选择输出目录")
             return
 
+        # 抖音链接提示
+        from .douyin import DouyinDownloader
+        if DouyinDownloader.is_douyin_url(url):
+            url_type = DouyinDownloader.classify_url(url)
+            if url_type == 'user':
+                # 用户主页链接需要 modal_id
+                QMessageBox.warning(
+                    self, "提示",
+                    "检测到抖音用户主页链接。\n\n"
+                    "抖音用户主页无法直接批量下载，请提供单个视频链接。\n\n"
+                    "提示：在抖音 App 中打开视频 → 分享 → 复制链接"
+                )
+                return
+            self._append_log("[*] 检测到抖音链接，将使用抖音专用下载器（无水印）")
+
         mode = 'video' if self.radio_video.isChecked() else 'audio'
         format_spec = self._get_format_spec()
         merge_format = self.combo_merge_format.currentText()

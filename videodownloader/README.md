@@ -6,6 +6,7 @@
 
 - **视频下载**：支持 YouTube、Bilibili 等上千个视频网站
 - **音频提取**：从视频中提取音频，支持 mp3/flac/wav/m4a/aac/opus 等格式
+- **抖音专用下载**：内置抖音无水印下载器，自动识别抖音链接
 - **画质选择**：支持最高画质/1080p/720p/480p/360p 等
 - **字幕下载**：支持自动字幕和手动字幕下载
 - **缩略图下载**：下载视频缩略图
@@ -68,6 +69,27 @@ python -m src video --help
 python -m src audio --help
 ```
 
+### 抖音下载
+
+抖音链接会自动使用内置的抖音专用下载器（无水印），无需额外配置：
+
+```bash
+# 下载抖音视频（自动识别抖音链接，使用 video 子命令即可）
+python -m src video "https://www.douyin.com/video/7620404072419577134" -o ./output
+
+# 使用抖音专用子命令
+python -m src douyin "https://v.douyin.com/xxx/" -o ./output
+python -m src douyin "https://www.douyin.com/video/7620404072419577134" -o ./output --mode audio
+
+# 查看抖音视频信息
+python -m src douyin "https://www.douyin.com/video/7620404072419577134" --mode info
+
+# 需要登录的视频，提供 Cookie
+python -m src douyin "https://www.douyin.com/video/xxx" --cookie-file cookies.txt
+```
+
+> **注意**：抖音用户主页链接（如 `https://www.douyin.com/user/self`）无法直接批量下载。请在抖音 App 中打开单个视频 → 分享 → 复制链接，使用该视频链接进行下载。
+
 ### 参数说明
 
 #### 视频下载 (video)
@@ -99,13 +121,16 @@ python -m src audio --help
 | `--cookie-file` | Cookie 文件路径 | None |
 | `-t/--timeout` | 超时时间(秒) | 30 |
 
-#### 信息查看 (info)
+#### 抖音专用下载 (douyin)
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
-| `url` | 视频/音频地址 | (必填) |
+| `url` | 抖音视频/分享链接 | (必填) |
+| `-o/--output` | 输出目录 | ./output |
+| `--mode` | 下载模式: video/audio/info | video |
 | `--proxy` | 代理地址 | None |
 | `--cookie-file` | Cookie 文件路径 | None |
+| `-t/--timeout` | 超时时间(秒) | 30 |
 
 ## 支持的网站
 
@@ -121,6 +146,7 @@ yt-dlp 支持上千个视频网站，包括但不限于：
 - Facebook
 - Instagram
 - TikTok
+- **抖音 (Douyin)** - 内置专用下载器，无水印
 - 以及更多...
 
 完整列表请参考 [yt-dlp 支持网站](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
@@ -137,6 +163,7 @@ videodownloader/
 │   └── media_downloader/        # 音视频下载器
 │       ├── __init__.py
 │       ├── core.py              # 核心下载逻辑 (基于 yt-dlp)
+│       ├── douyin.py            # 抖音专用下载器 (无水印)
 │       ├── gui.py               # GUI 对话框
 │       └── gui_main.py          # GUI 入口
 ├── output/                      # 默认输出目录
@@ -151,6 +178,13 @@ videodownloader/
 ### 下载最高画质失败？
 
 下载最高画质（bestvideo+bestaudio）需要 ffmpeg 来合并音视频流。请安装 ffmpeg 并确保其在系统 PATH 中。
+
+### 抖音视频下载失败？
+
+1. **用户主页链接不支持**：抖音用户主页（如 `/user/self`）无法批量下载，请提供单个视频的分享链接
+2. **如何获取视频链接**：在抖音 App 中打开视频 → 分享 → 复制链接
+3. **需要登录的视频**：使用 `--cookie-file` 参数提供 Cookie
+4. **自动识别**：抖音链接会自动使用内置专用下载器，无需手动指定
 
 ### 如何下载需要登录的视频？
 

@@ -15,12 +15,13 @@ from urllib.parse import urlparse
 try:
     import yt_dlp
 except ImportError:
-    print("[-] 缺少依赖: yt-dlp，请运行 pip install yt-dlp")
-    sys.exit(1)
+    yt_dlp = None
+
+from .douyin import DouyinDownloader
 
 
 class MediaDownloader:
-    """音视频下载器，封装 yt-dlp 功能"""
+    """音视频下载器，封装 yt-dlp 功能，并内置抖音专用下载器"""
 
     # 音频格式到 yt-dlp 格式字符串的映射
     AUDIO_FORMAT_MAP = {
@@ -120,6 +121,9 @@ class MediaDownloader:
 
     def _build_ydl_opts(self, output_template=None):
         """构建 yt-dlp 选项"""
+        if yt_dlp is None:
+            raise RuntimeError("yt-dlp 未安装，请运行 pip install yt-dlp")
+
         opts = {
             'outtmpl': output_template or os.path.join(self.output_dir, '%(title)s.%(ext)s'),
             'restrictfilenames': True,  # 限制文件名为 ASCII 安全字符
@@ -307,6 +311,32 @@ class MediaDownloader:
         """检查 ffmpeg 是否可用（合并视频+音频需要）"""
         return shutil.which('ffmpeg') is not None
 
+    def _is_douyin_url(self):
+        """判断当前 URL 是否是抖音链接"""
+        return DouyinDownloader.is_douyin_url(self.url)
+
+    def _run_douyin(self):
+        """使用抖音专用下载器"""
+        douyin = DouyinDownloader(
+            output_dir=self.output_base_dir,
+            proxy=self.proxy,
+            cookie=self.cookie_file,
+            timeout=self.timeout,
+            progress_callback=self._log,
+        )
+        mode = self.mode
+        if mode == 'info':
+            mode = 'info'
+        elif mode == 'audio':
+            mode = 'audio'
+        else:
+            mode = 'video'
+        success = douyin.run(self.url, mode=mode)
+        # 同步下载统计
+        self.downloaded_count = douyin.downloaded_count
+        self.failed_count = douyin.failed_count
+        return success
+
     def run(self):
         """
         运行下载流程
@@ -314,6 +344,16 @@ class MediaDownloader:
         Returns:
             bool: 是否成功
         """
+        # 抖音链接使用专用下载器
+        if self._is_douyin_url():
+            self._log("[*] 检测到抖音链接，使用抖音专用下载器")
+            return self._run_douyin()
+
+        # 非抖音链接需要 yt-dlp
+        if yt_dlp is None:
+            self._log("[-] 缺少依赖: yt-dlp，请运行 pip install yt-dlp")
+            return False
+
         mode_names = {'video': '视频', 'audio': '音频', 'info': '信息查看'}
         self._log("=" * 60)
         self._log(f"音视频下载工具 - {mode_names.get(self.mode, self.mode)}模式")
@@ -432,6 +472,16 @@ class MediaDownloader:
         """
         if progress_callback:
             self.progress_callback = progress_callback
+
+        # 抖音链接使用专用下载器
+        if self._is_douyin_url():
+            self._log("[*] 检测到抖音链接，使用抖音专用下载器")
+            return self._run_douyin()
+
+        # 非抖音链接需要 yt-dlp
+        if yt_dlp is None:
+            self._log("[-] 缺少依赖: yt-dlp，请运行 pip install yt-dlp")
+            return False
 
         # 获取信息
         self._log("[*] 正在获取媒体信息...")

@@ -23,6 +23,11 @@ def main():
     python -m src audio "https://www.youtube.com/watch?v=xxx" -o ./output
     python -m src audio "https://music.163.com/xxx" -o ./output --audio-format flac
 
+  抖音下载 (自动识别抖音链接，也可单独使用):
+    python -m src video "https://www.douyin.com/video/7620404072419577134"
+    python -m src douyin "https://v.douyin.com/xxx/"
+    python -m src douyin "https://www.douyin.com/video/7620404072419577134" --mode audio
+
   查看视频信息:
     python -m src info "https://www.youtube.com/watch?v=xxx"
 
@@ -86,6 +91,21 @@ def main():
     # GUI 子命令
     gui_parser = subparsers.add_parser("gui", help="启动图形界面")
 
+    # 抖音专用下载子命令
+    douyin_parser = subparsers.add_parser("douyin", help="抖音专用下载器 (无水印)")
+    douyin_parser.add_argument("url", help="抖音视频/分享链接")
+    douyin_parser.add_argument("-o", "--output", default="./output",
+                               help="输出目录 (默认: ./output)")
+    douyin_parser.add_argument("--mode", default="video",
+                               choices=["video", "audio", "info"],
+                               help="下载模式: video/audio/info (默认: video)")
+    douyin_parser.add_argument("--proxy", default=None,
+                               help="代理地址 (如 socks5://127.0.0.1:1080)")
+    douyin_parser.add_argument("--cookie-file", default=None,
+                               help="Cookie 文件路径 (用于需要登录的视频)")
+    douyin_parser.add_argument("-t", "--timeout", type=int, default=30,
+                               help="下载超时时间，单位秒 (默认: 30)")
+
     args = parser.parse_args()
 
     if args.command == "video":
@@ -138,6 +158,17 @@ def main():
     elif args.command == "gui":
         from .media_downloader.gui_main import main
         main()
+
+    elif args.command == "douyin":
+        from .media_downloader.douyin import DouyinDownloader
+        douyin = DouyinDownloader(
+            output_dir=args.output,
+            proxy=args.proxy,
+            cookie=args.cookie_file,
+            timeout=args.timeout,
+        )
+        success = douyin.run(args.url, mode=args.mode)
+        sys.exit(0 if success else 1)
 
     else:
         parser.print_help()
