@@ -36,3 +36,13 @@
   - 通过 yt-dlp 下载
   - 可能需要登录 Cookie
   - 可能需要代理
+
+### MacCMS 视频站 (苹果CMS)
+- https://kanav.ad/index.php/vod/play/id/107201/sid/1/nid/1.html
+  - 使用内置 MacCMS 专用解析器
+  - 自动检测 MacCMS 站点 URL 模式 (`/vod/play/` 等)
+  - 支持 `player_aaaa` 变量解析，encrypt 0/1/2 三种加密级别
+  - 自有 m3u8 下载器（保持 session cookies 绕过 Cloudflare）
+  - 降级策略：自有下载器 → yt-dlp → ffmpeg
+  - 注意：Referer 必须带末尾斜杠（如 `https://kanav.ad/`）
+  - 适用于所有基于 MacCMS 模板的视频站

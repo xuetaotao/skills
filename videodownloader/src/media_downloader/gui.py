@@ -426,6 +426,11 @@ class MediaDownloaderDialog(QDialog):
                 return
             self._append_log("[*] 检测到抖音链接，将使用抖音专用下载器（无水印）")
 
+        # MacCMS 站点提示
+        from .maccms import MacCMSDownloader
+        if MacCMSDownloader.is_maccms_url(url):
+            self._append_log("[*] 检测到 MacCMS 视频站，将使用专用解析器")
+
         mode = 'video' if self.radio_video.isChecked() else 'audio'
         format_spec = self._get_format_spec()
         merge_format = self.combo_merge_format.currentText()

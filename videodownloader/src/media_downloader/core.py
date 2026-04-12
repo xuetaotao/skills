@@ -18,6 +18,7 @@ except ImportError:
     yt_dlp = None
 
 from .douyin import DouyinDownloader
+from .maccms import MacCMSDownloader
 
 
 class MediaDownloader:
@@ -315,6 +316,10 @@ class MediaDownloader:
         """判断当前 URL 是否是抖音链接"""
         return DouyinDownloader.is_douyin_url(self.url)
 
+    def _is_maccms_url(self):
+        """判断当前 URL 是否是 MacCMS 站点"""
+        return MacCMSDownloader.is_maccms_url(self.url)
+
     def _run_douyin(self):
         """使用抖音专用下载器"""
         douyin = DouyinDownloader(
@@ -337,6 +342,23 @@ class MediaDownloader:
         self.failed_count = douyin.failed_count
         return success
 
+    def _run_maccms(self):
+        """使用 MacCMS 专用下载器"""
+        maccms = MacCMSDownloader(
+            output_dir=self.output_base_dir,
+            proxy=self.proxy,
+            cookie=self.cookie_file,
+            timeout=self.timeout,
+            progress_callback=self._log,
+        )
+        mode = self.mode
+        if mode == 'audio':
+            mode = 'video'  # MacCMS 暂不支持纯音频提取
+        success = maccms.run(self.url, mode=mode)
+        self.downloaded_count = maccms.downloaded_count
+        self.failed_count = maccms.failed_count
+        return success
+
     def run(self):
         """
         运行下载流程
@@ -349,7 +371,12 @@ class MediaDownloader:
             self._log("[*] 检测到抖音链接，使用抖音专用下载器")
             return self._run_douyin()
 
-        # 非抖音链接需要 yt-dlp
+        # MacCMS 站点使用专用下载器
+        if self._is_maccms_url():
+            self._log("[*] 检测到 MacCMS 视频站，使用专用解析器")
+            return self._run_maccms()
+
+        # 其他链接需要 yt-dlp
         if yt_dlp is None:
             self._log("[-] 缺少依赖: yt-dlp，请运行 pip install yt-dlp")
             return False
@@ -478,7 +505,12 @@ class MediaDownloader:
             self._log("[*] 检测到抖音链接，使用抖音专用下载器")
             return self._run_douyin()
 
-        # 非抖音链接需要 yt-dlp
+        # MacCMS 站点使用专用下载器
+        if self._is_maccms_url():
+            self._log("[*] 检测到 MacCMS 视频站，使用专用解析器")
+            return self._run_maccms()
+
+        # 其他链接需要 yt-dlp
         if yt_dlp is None:
             self._log("[-] 缺少依赖: yt-dlp，请运行 pip install yt-dlp")
             return False
