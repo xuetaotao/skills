@@ -46,10 +46,10 @@ jobs:
       - name: Prepare pages artifact
         run: |
           mkdir -p _pages
-          cp src/reports/index.html _pages/
-          cp src/reports/latest_report.html _pages/
-          cp src/reports/latest_report.json _pages/
-          cp src/reports/latest_report.md _pages/
+          cp outputs/index.html _pages/
+          cp outputs/latest_report.html _pages/
+          cp outputs/latest_report.json _pages/
+          cp outputs/latest_report.md _pages/
       
       - name: Setup Pages
         uses: actions/configure-pages@v4

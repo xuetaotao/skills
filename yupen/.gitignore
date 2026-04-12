@@ -34,7 +34,7 @@ env/
 *~
 
 # Reports
-src/reports/
+outputs/
 
 # Logs
 *.log

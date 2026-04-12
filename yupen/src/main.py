@@ -55,7 +55,7 @@ def main():
         report_result = result.get("results", {}).get("report_generator", {})
         markdown_report = report_result.get("markdown_report", "")
 
-        output_dir = os.path.join(os.path.dirname(__file__), "reports")
+        output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "outputs")
         os.makedirs(output_dir, exist_ok=True)
 
         date_str = datetime.now().strftime("%Y%m%d_%H%M%S")

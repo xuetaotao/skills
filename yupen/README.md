@@ -68,7 +68,7 @@ python main.py
 
 ### 查看报告
 
-报告文件保存在 `yupen/src/reports/` 目录下：
+报告文件保存在 `yupen/outputs/` 目录下：
 
 - `latest_report.html` - 最新HTML报告（可在浏览器中打开）
 - `latest_report.json` - 最新JSON报告
@@ -113,7 +113,7 @@ yupen/
 │   │   ├── analyzer.py      # 数据分析Agent
 │   │   ├── signal_generator.py  # 信号生成Agent
 │   │   └── report_generator.py  # 报告生成Agent
-│   └── reports/             # 报告输出目录
+└── outputs/             # 报告输出目录
 ├── run.sh
 ├── run_windows.ps1
 └── requirements.txt
