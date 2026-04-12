@@ -19,6 +19,7 @@ except ImportError:
 
 from .douyin import DouyinDownloader
 from .maccms import MacCMSDownloader
+from .rouvideo import RouVideoDownloader
 
 
 class MediaDownloader:
@@ -320,6 +321,10 @@ class MediaDownloader:
         """判断当前 URL 是否是 MacCMS 站点"""
         return MacCMSDownloader.is_maccms_url(self.url)
 
+    def _is_rouvideo_url(self):
+        """判断当前 URL 是否是 rou.video 链接"""
+        return RouVideoDownloader.is_rouvideo_url(self.url)
+
     def _run_douyin(self):
         """使用抖音专用下载器"""
         douyin = DouyinDownloader(
@@ -359,6 +364,23 @@ class MediaDownloader:
         self.failed_count = maccms.failed_count
         return success
 
+    def _run_rouvideo(self):
+        """使用 RouVideo 专用下载器"""
+        rouvideo = RouVideoDownloader(
+            output_dir=self.output_base_dir,
+            proxy=self.proxy,
+            cookie=self.cookie_file,
+            timeout=self.timeout,
+            progress_callback=self._log,
+        )
+        mode = self.mode
+        if mode == 'audio':
+            mode = 'video'  # RouVideo 暂不支持纯音频提取
+        success = rouvideo.run(self.url, mode=mode)
+        self.downloaded_count = rouvideo.downloaded_count
+        self.failed_count = rouvideo.failed_count
+        return success
+
     def run(self):
         """
         运行下载流程
@@ -375,6 +397,11 @@ class MediaDownloader:
         if self._is_maccms_url():
             self._log("[*] 检测到 MacCMS 视频站，使用专用解析器")
             return self._run_maccms()
+
+        # RouVideo 站点使用专用下载器
+        if self._is_rouvideo_url():
+            self._log("[*] 检测到 RouVideo 链接，使用专用解析器")
+            return self._run_rouvideo()
 
         # 其他链接需要 yt-dlp
         if yt_dlp is None:
@@ -509,6 +536,11 @@ class MediaDownloader:
         if self._is_maccms_url():
             self._log("[*] 检测到 MacCMS 视频站，使用专用解析器")
             return self._run_maccms()
+
+        # RouVideo 站点使用专用下载器
+        if self._is_rouvideo_url():
+            self._log("[*] 检测到 RouVideo 链接，使用专用解析器")
+            return self._run_rouvideo()
 
         # 其他链接需要 yt-dlp
         if yt_dlp is None:

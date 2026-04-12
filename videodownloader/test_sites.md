@@ -39,6 +39,7 @@
 
 ### MacCMS 视频站 (苹果CMS)
 - https://kanav.ad/index.php/vod/play/id/107201/sid/1/nid/1.html
+- https://91md.me/index.php/vod/play/id/33062/sid/1/nid/1.html
   - 使用内置 MacCMS 专用解析器
   - 自动检测 MacCMS 站点 URL 模式 (`/vod/play/` 等)
   - 支持 `player_aaaa` 变量解析，encrypt 0/1/2 三种加密级别
@@ -46,3 +47,12 @@
   - 降级策略：自有下载器 → yt-dlp → ffmpeg
   - 注意：Referer 必须带末尾斜杠（如 `https://kanav.ad/`）
   - 适用于所有基于 MacCMS 模板的视频站
+
+### RouVideo
+- https://rou.video/v/cl5u28gi6007112f20wdkcz61
+  - 使用内置 RouVideo 专用解析器
+  - 自动检测 rou.video 域名
+  - 从 `__NEXT_DATA__` 提取加密数据 (`ev.d` + `ev.k`)，解密算法：base64 解码 → 每字节减 `k` → JSON 解析
+  - 解密后得到伪装为 .jpg 后缀的 m3u8 URL，通过 HLS 下载 TS 分片并合并为 MP4
+  - 支持 video/audio/info 三种模式
+  - 不需要登录即可下载
