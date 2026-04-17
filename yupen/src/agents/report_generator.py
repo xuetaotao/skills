@@ -16,6 +16,8 @@ class ReportAgent(BaseAgent):
         "sh": "A股",
         "sz": "A股",
         "us": "美股",
+        "jp": "日本市场",
+        "hk": "港股市场",
         "metal": "大宗商品"
     }
 
@@ -306,7 +308,8 @@ class ReportAgent(BaseAgent):
 
         .index-table {{
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
         }}
 
         .index-table thead {{
@@ -318,6 +321,14 @@ class ReportAgent(BaseAgent):
             padding: 15px 10px;
             text-align: left;
             font-weight: 600;
+        }}
+
+        .index-table thead tr th:first-child {{
+            border-radius: 12px 0 0 12px;
+        }}
+
+        .index-table thead tr th:last-child {{
+            border-radius: 0 12px 12px 0;
         }}
 
         .index-table td {{
@@ -869,7 +880,7 @@ class ReportAgent(BaseAgent):
         return "其他"
 
     def _group_ranked_signals_by_market(self, ranked_signals: List, analyzed_data: Dict, raw_data: Dict) -> Dict[str, Dict[str, Any]]:
-        group_order = ["A股", "美股", "大宗商品", "其他"]
+        group_order = ["A股", "美股", "日本市场", "港股市场", "大宗商品", "其他"]
         grouped = {label: {"items": [], "dates": []} for label in group_order}
 
         for item in ranked_signals:

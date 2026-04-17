@@ -99,6 +99,13 @@ class DataSourceManager:
     def fetch_index_data(self, code: str, market: str, days: int) -> Optional[Dict]:
         if market == "us":
             sources = [("新浪美股指数", self._fetch_from_us_index)]
+        elif market == "jp":
+            sources = [("新浪全球指数", self._fetch_from_jp_index)]
+        elif market == "hk":
+            sources = [
+                ("东方财富港股指数", self._fetch_from_hk_index_em),
+                ("新浪港股指数", self._fetch_from_hk_index_sina),
+            ]
         elif market == "metal":
             sources = [("外盘商品期货", self._fetch_from_metal)]
         else:
@@ -320,6 +327,100 @@ class DataSourceManager:
             return {'data': df, 'symbol': code}
         except Exception as e:
             logger.warning(f"外盘商品期货 获取 {code} 失败: {e}")
+            return None
+
+    # 新浪全球指数的中文名称映射（code → akshare symbol）
+    _JP_CODE_TO_SINA_SYMBOL = {
+        "N225": "日经225指数",
+    }
+
+    def _fetch_from_jp_index(self, code: str, market: str, days: int) -> Optional[Dict]:
+        import akshare as ak
+
+        try:
+            sina_symbol = self._JP_CODE_TO_SINA_SYMBOL.get(code, code)
+            df = ak.index_global_hist_sina(symbol=sina_symbol)
+
+            if df is None or len(df) == 0:
+                return None
+
+            col_map = {
+                '日期': 'date',
+                '今开': 'open',
+                '最新价': 'close',
+                '最高': 'high',
+                '最低': 'low',
+                '开盘': 'open',
+                '收盘': 'close',
+                '成交量': 'volume',
+            }
+            df.rename(columns={k: v for k, v in col_map.items() if k in df.columns}, inplace=True)
+
+            if 'date' not in df.columns:
+                return None
+
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.sort_values('date').reset_index(drop=True)
+
+            if len(df) > days:
+                df = df.tail(days)
+
+            return {'data': df, 'symbol': code}
+        except Exception as e:
+            logger.warning(f"东方财富日本指数 获取 {code} 失败: {e}")
+            return None
+
+    def _fetch_from_hk_index_em(self, code: str, market: str, days: int) -> Optional[Dict]:
+        import akshare as ak
+
+        try:
+            df = ak.stock_hk_index_daily_em(symbol=code)
+
+            if df is None or len(df) == 0:
+                return None
+
+            col_map = {
+                '日期': 'date', '今开': 'open', '开盘': 'open',
+                '最新价': 'close', '收盘': 'close',
+                '最高': 'high', '最低': 'low', '成交量': 'volume',
+            }
+            df.rename(columns={k: v for k, v in col_map.items() if k in df.columns}, inplace=True)
+
+            if 'date' not in df.columns:
+                return None
+
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.sort_values('date').reset_index(drop=True)
+
+            if len(df) > days:
+                df = df.tail(days)
+
+            return {'data': df, 'symbol': code}
+        except Exception as e:
+            logger.warning(f"东方财富港股指数 获取 {code} 失败: {e}")
+            return None
+
+    def _fetch_from_hk_index_sina(self, code: str, market: str, days: int) -> Optional[Dict]:
+        import akshare as ak
+
+        try:
+            df = ak.stock_hk_index_daily_sina(symbol=code)
+
+            if df is None or len(df) == 0:
+                return None
+
+            if 'date' not in df.columns:
+                return None
+
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.sort_values('date').reset_index(drop=True)
+
+            if len(df) > days:
+                df = df.tail(days)
+
+            return {'data': df, 'symbol': code}
+        except Exception as e:
+            logger.warning(f"新浪港股指数 获取 {code} 失败: {e}")
             return None
 
 
