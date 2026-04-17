@@ -21,6 +21,15 @@ class ReportAgent(BaseAgent):
         "metal": "大宗商品"
     }
 
+    MARKET_ICONS = {
+        "A股": "🇨🇳",
+        "美股": "🇺🇸",
+        "日本市场": "🇯🇵",
+        "港股市场": "🇭🇰",
+        "大宗商品": "🏅",
+        "其他": "🌐",
+    }
+
     def __init__(self):
         super().__init__("ReportAgent")
 
@@ -101,8 +110,11 @@ class ReportAgent(BaseAgent):
 
         if ranked_signals:
             grouped_rankings = self._group_ranked_signals_by_market(ranked_signals, analyzed_data, raw_data)
+            today = datetime.now().strftime('%Y-%m-%d')
             for market_label, group in grouped_rankings.items():
-                lines.append(f"### {market_label}（数据更新时间：{group['数据更新时间']}）")
+                data_date = group['数据更新时间']
+                stale_mark = " ⚠️ 非当日数据" if data_date != 'N/A' and data_date < today else ""
+                lines.append(f"### {market_label}（数据更新时间：{data_date}{stale_mark}）")
                 lines.append("")
                 if show_source_pe_metric:
                     lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 数据源/PE百分位 | 操作建议 |")
@@ -664,6 +676,48 @@ class ReportAgent(BaseAgent):
             font-weight: bold;
         }}
 
+        .market-group-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: linear-gradient(90deg, #f0f4ff 0%, #f8f9fa 100%);
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            margin: 24px 0 12px 0;
+        }}
+
+        .market-group-header:first-child {{
+            margin-top: 4px;
+        }}
+
+        .market-group-title {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.05em;
+            font-weight: 700;
+            color: #2c3e50;
+        }}
+
+        .market-group-title .market-icon {{
+            font-size: 1.2em;
+        }}
+
+        .market-date-badge {{
+            font-size: 0.82em;
+            color: #7b1fa2;
+            background: #f3e5f5;
+            padding: 4px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }}
+
+        .stat-icon {{
+            font-size: 2em;
+            margin-bottom: 8px;
+        }}
+
         @media (max-width: 900px) {{
             .index-table {{
                 display: block;
@@ -681,8 +735,6 @@ class ReportAgent(BaseAgent):
                 <span class="refresh-info">🕐 刷新时间: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}</span>
             </div>
         </div>
-
-
 
         <div class="section">
             <div class="section-header">
@@ -912,10 +964,27 @@ class ReportAgent(BaseAgent):
         source_pe_style = "" if show_source_pe_metric else "display:none;"
         source_pe_header = f'<th data-col="source-pe" style="{source_pe_style}">数据源/PE百分位</th>'
 
+        today = datetime.now().strftime('%Y-%m-%d')
         for market_label, group in grouped_rankings.items():
             rows_html = self._generate_table_rows(group["items"], signals, analyzed_data, summary, show_source_pe_metric)
+            market_icon = self.MARKET_ICONS.get(market_label, "📊")
+            data_date = group['数据更新时间']
+            is_stale = data_date != 'N/A' and data_date < today
+            date_icon = "⚠️" if is_stale else "✅"
+            date_style = (
+                "background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-weight:600;"
+                if is_stale else
+                "background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;"
+            )
+            stale_tip = " 非当日数据" if is_stale else ""
             sections.append(f"""
-            <h3 style="margin: 18px 0 12px 0; color: #2c3e50;">{market_label}（数据更新时间：{group['数据更新时间']}）</h3>
+            <div class="market-group-header">
+                <div class="market-group-title">
+                    <span class="market-icon">{market_icon}</span>
+                    <span>{market_label}</span>
+                </div>
+                <span class="market-date-badge" style="{date_style}">{date_icon} {data_date}{stale_tip}</span>
+            </div>
             <table class="index-table" style="margin-bottom: 20px;">
                 <thead>
                     <tr>
@@ -1105,5 +1174,55 @@ class ReportAgent(BaseAgent):
                     {"".join(items)}
                 </ul>
             </div>
+        """
+
+    def _generate_stat_cards_html(self, summary: Dict) -> str:
+        yes_count = summary.get('YES数量', 0)
+        no_count = summary.get('NO数量', 0)
+        avg_dev = summary.get('平均偏离度', '0.00%')
+        strongest = summary.get('最强指数', '无')
+        strongest_dev = summary.get('最强偏离度', '0.00%')
+        trend = summary.get('整体趋势', '未知')
+
+        if '强势' in trend or '上涨' in trend:
+            trend_class = 'up'
+        elif '弱势' in trend or '下跌' in trend:
+            trend_class = 'down'
+        else:
+            trend_class = 'neutral'
+
+        try:
+            avg_dev_val = float(avg_dev.replace('%', ''))
+            avg_trend_class = 'up' if avg_dev_val > 0 else 'down' if avg_dev_val < 0 else 'neutral'
+        except Exception:
+            avg_trend_class = 'neutral'
+
+        return f"""
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="label">多头指数</div>
+                <div class="value" style="color: #2e7d32;">{yes_count}</div>
+                <div class="trend up">站上 MA20</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📉</div>
+                <div class="label">空头指数</div>
+                <div class="value" style="color: #c62828;">{no_count}</div>
+                <div class="trend down">跌破 MA20</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="label">平均偏离度</div>
+                <div class="value" style="font-size: 1.6em;">{avg_dev}</div>
+                <div class="trend {avg_trend_class}">{trend}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🏆</div>
+                <div class="label">最强指数</div>
+                <div class="value" style="font-size: 1.3em;">{strongest}</div>
+                <div class="trend up">{strongest_dev}</div>
+            </div>
+        </div>
         """
 

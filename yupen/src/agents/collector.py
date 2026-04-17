@@ -103,8 +103,8 @@ class DataSourceManager:
             sources = [("新浪全球指数", self._fetch_from_jp_index)]
         elif market == "hk":
             sources = [
-                ("东方财富港股指数", self._fetch_from_hk_index_em),
                 ("新浪港股指数", self._fetch_from_hk_index_sina),
+                ("东方财富港股指数", self._fetch_from_hk_index_em),
             ]
         elif market == "metal":
             sources = [("外盘商品期货", self._fetch_from_metal)]
