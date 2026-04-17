@@ -15,6 +15,8 @@ class ReportAgent(BaseAgent):
     MARKET_LABELS = {
         "sh": "A股",
         "sz": "A股",
+        "narrow": "A股窄基行业趋势",
+        "stock": "A股个股趋势",
         "us": "美股",
         "jp": "日本市场",
         "hk": "港股市场",
@@ -23,6 +25,8 @@ class ReportAgent(BaseAgent):
 
     MARKET_ICONS = {
         "A股": "🇨🇳",
+        "A股窄基行业趋势": "🎯",
+        "A股个股趋势": "📌",
         "美股": "🇺🇸",
         "日本市场": "🇯🇵",
         "港股市场": "🇭🇰",
@@ -116,11 +120,12 @@ class ReportAgent(BaseAgent):
                 stale_mark = " ⚠️ 非当日数据" if data_date != 'N/A' and data_date < today else ""
                 lines.append(f"### {market_label}（数据更新时间：{data_date}{stale_mark}）")
                 lines.append("")
+                name_col = "股票名称" if market_label == "A股个股趋势" else "指数名称"
                 if show_source_pe_metric:
-                    lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 数据源/PE百分位 | 操作建议 |")
+                    lines.append(f"| 排名 | {name_col} | 状态 | 偏离度 | 数据源/PE百分位 | 操作建议 |")
                     lines.append("|------|----------|------|--------|----------------|----------|")
                 else:
-                    lines.append("| 排名 | 指数名称 | 状态 | 偏离度 | 操作建议 |")
+                    lines.append(f"| 排名 | {name_col} | 状态 | 偏离度 | 操作建议 |")
                     lines.append("|------|----------|------|--------|----------|")
                 for item in group["items"]:
                     偏离度 = item['偏离度']
@@ -829,7 +834,7 @@ class ReportAgent(BaseAgent):
             数据状态 = analysis.get('数据状态', '成功')
 
             if 数据状态 == '获取失败':
-                rank_class = f'rank-badge rank-{item["趋势强度排名"]}' if item["趋势强度排名"] <= 3 else 'rank-badge'
+                rank_class = f'rank-badge rank-{item["趋势强度排名"]}' if isinstance(item["趋势强度排名"], int) and item["趋势强度排名"] <= 3 else 'rank-badge'
                 failed_colspan = 7 if show_source_pe_metric else 6
                 rows.append(f"""
                 <tr class="data-failed-row">
@@ -856,7 +861,7 @@ class ReportAgent(BaseAgent):
                 status_class = 'status-yes' if item['状态'] == 'YES' else 'status-no'
                 status_text = '✅ YES' if item['状态'] == 'YES' else '❌ NO'
 
-            rank_class = f'rank-badge rank-{item["趋势强度排名"]}' if item["趋势强度排名"] <= 3 else 'rank-badge'
+            rank_class = f'rank-badge rank-{item["趋势强度排名"]}' if isinstance(item["趋势强度排名"], int) and item["趋势强度排名"] <= 3 else 'rank-badge'
 
             操作 = signal.get('操作建议', '')
             if '买入' in 操作 or '持有' in 操作:
@@ -932,7 +937,7 @@ class ReportAgent(BaseAgent):
         return "其他"
 
     def _group_ranked_signals_by_market(self, ranked_signals: List, analyzed_data: Dict, raw_data: Dict) -> Dict[str, Dict[str, Any]]:
-        group_order = ["A股", "美股", "日本市场", "港股市场", "大宗商品", "其他"]
+        group_order = ["A股", "美股", "日本市场", "港股市场", "大宗商品", "A股窄基行业趋势", "A股个股趋势", "其他"]
         grouped = {label: {"items": [], "dates": []} for label in group_order}
 
         for item in ranked_signals:
@@ -977,6 +982,7 @@ class ReportAgent(BaseAgent):
                 "background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;"
             )
             stale_tip = " 非当日数据" if is_stale else ""
+            name_header = "股票名称" if market_label == "A股个股趋势" else "指数名称"
             sections.append(f"""
             <div class="market-group-header">
                 <div class="market-group-title">
@@ -989,7 +995,7 @@ class ReportAgent(BaseAgent):
                 <thead>
                     <tr>
                         <th>排名</th>
-                        <th>指数名称</th>
+                        <th>{name_header}</th>
                         <th>代码</th>
                         <th>现价</th>
                         <th>涨跌幅</th>
@@ -1117,7 +1123,7 @@ class ReportAgent(BaseAgent):
         return "\n".join(cards)
 
     def _generate_signal_list(self, ranked_signals: List, status_filter: str, signals: Dict) -> str:
-        filtered = [s for s in ranked_signals if s['状态'] == status_filter]
+        filtered = [s for s in ranked_signals if s['状态'] == status_filter and s.get('market') not in {'stock'}]
 
         if not filtered:
             return f'<p style="color: #666;">暂无{status_filter}指数</p>'

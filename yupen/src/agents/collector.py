@@ -97,7 +97,14 @@ class DataSourceManager:
         self.sources_tried = {}
 
     def fetch_index_data(self, code: str, market: str, days: int) -> Optional[Dict]:
-        if market == "us":
+        if market == "stock":
+            sources = [("新浪财经", self._fetch_from_stock)]
+        elif market == "narrow":
+            sources = [
+                ("腾讯财经", self._fetch_from_narrow_tx),
+                ("中证CSIndex", self._fetch_from_csindex),
+            ]
+        elif market == "us":
             sources = [("新浪美股指数", self._fetch_from_us_index)]
         elif market == "jp":
             sources = [("新浪全球指数", self._fetch_from_jp_index)]
@@ -421,6 +428,56 @@ class DataSourceManager:
             return {'data': df, 'symbol': code}
         except Exception as e:
             logger.warning(f"新浪港股指数 获取 {code} 失败: {e}")
+            return None
+
+    def _fetch_from_stock(self, code: str, market: str, days: int) -> Optional[Dict]:
+        import akshare as ak
+
+        try:
+            prefix = "sh" if code.startswith("6") else "sz"
+            df = ak.stock_zh_a_daily(symbol=f"{prefix}{code}", adjust="qfq")
+
+            if df is None or len(df) == 0:
+                return None
+
+            if 'date' not in df.columns:
+                return None
+
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.sort_values('date').reset_index(drop=True)
+
+            if len(df) > days:
+                df = df.tail(days)
+
+            return {'data': df, 'symbol': code}
+        except Exception as e:
+            logger.warning(f"新浪财经 获取个股 {code} 失败: {e}")
+            return None
+
+    # 腾讯接口中部分窄基指数需要交易所前缀
+    _NARROW_TX_PREFIX = {
+        "980092": "sz",
+    }
+
+    def _fetch_from_narrow_tx(self, code: str, market: str, days: int) -> Optional[Dict]:
+        """腾讯财经——适用于有标准交易所前缀的窄基指数（如 sz980092）"""
+        import akshare as ak
+
+        tx_prefix = self._NARROW_TX_PREFIX.get(code)
+        if not tx_prefix:
+            return None  # 无前缀映射则跳过，由下一个数据源接手
+
+        try:
+            df = ak.stock_zh_index_daily_tx(symbol=f"{tx_prefix}{code}")
+            if df is None or len(df) == 0 or 'date' not in df.columns:
+                return None
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.sort_values('date').reset_index(drop=True)
+            if len(df) > days:
+                df = df.tail(days)
+            return {'data': df, 'symbol': code}
+        except Exception as e:
+            logger.warning(f"腾讯财经 获取窄基 {code} 失败: {e}")
             return None
 
 

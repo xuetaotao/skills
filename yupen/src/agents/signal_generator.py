@@ -13,17 +13,21 @@ class SignalGeneratorAgent(BaseAgent):
     def __init__(self):
         super().__init__("SignalGeneratorAgent")
 
+    # 不参与排名的 market 类型
+    EXCLUDE_FROM_RANK = {"stock"}
+
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         self.log_info("开始生成交易信号...")
 
         analyzed_data = context.get("analyzed_data", {})
+        raw_data = context.get("raw_data", {})
 
         signals = {}
         for index_name, analysis in analyzed_data.items():
             signal = self._generate_signal(index_name, analysis)
             signals[index_name] = signal
 
-        ranked_signals = self._rank_signals(signals)
+        ranked_signals = self._rank_signals(signals, raw_data)
 
         summary = self._generate_summary(ranked_signals)
 
@@ -86,10 +90,12 @@ class SignalGeneratorAgent(BaseAgent):
             "当前价格": analysis.get("当前价格", 0)
         }
 
-    def _rank_signals(self, signals: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _rank_signals(self, signals: Dict[str, Any], raw_data: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         signal_list = []
+        raw_data = raw_data or {}
 
         for name, signal in signals.items():
+            market = raw_data.get(name, {}).get("market", "")
             偏离度 = signal.get("偏离度")
             if 偏离度 is None:
                 偏离度 = -999
@@ -99,13 +105,22 @@ class SignalGeneratorAgent(BaseAgent):
                 "信号": signal.get("当前信号", "❌ 数据获取失败"),
                 "状态": signal.get("状态"),
                 "偏离度": 偏离度,
-                "操作建议": signal.get("操作建议", "待修复")
+                "操作建议": signal.get("操作建议", "待修复"),
+                "market": market,
             })
 
-        signal_list.sort(key=lambda x: x["偏离度"], reverse=True)
+        # 不参与排名的条目排到末尾，其余按偏离度降序
+        signal_list.sort(
+            key=lambda x: (x["market"] in self.EXCLUDE_FROM_RANK, -x["偏离度"])
+        )
 
-        for i, item in enumerate(signal_list):
-            item["趋势强度排名"] = i + 1
+        rank = 1
+        for item in signal_list:
+            if item["market"] in self.EXCLUDE_FROM_RANK:
+                item["趋势强度排名"] = "--"
+            else:
+                item["趋势强度排名"] = rank
+                rank += 1
 
         return signal_list
 
@@ -113,8 +128,10 @@ class SignalGeneratorAgent(BaseAgent):
         if not ranked_signals:
             return {"整体趋势": "无法判断", "市场情绪": "未知"}
 
-        valid_signals = [s for s in ranked_signals if s["状态"] is not None]
-        failed_signals = [s for s in ranked_signals if s["状态"] is None]
+        # 个股不计入整体趋势统计
+        ranked_for_summary = [s for s in ranked_signals if s.get("market") not in self.EXCLUDE_FROM_RANK]
+        valid_signals = [s for s in ranked_for_summary if s["状态"] is not None]
+        failed_signals = [s for s in ranked_for_summary if s["状态"] is None]
 
         yes_count = sum(1 for s in valid_signals if s["状态"] == "YES")
         no_count = len(valid_signals) - yes_count
@@ -161,7 +178,8 @@ class SignalGeneratorAgent(BaseAgent):
         no_count = summary.get("NO数量", 0)
         total = yes_count + no_count
 
-        valid_signals = [s for s in ranked_signals if s.get("状态") is not None]
+        ranked_ex = [s for s in ranked_signals if s.get("market") not in self.EXCLUDE_FROM_RANK]
+        valid_signals = [s for s in ranked_ex if s.get("状态") is not None]
         yes_signals = [s for s in valid_signals if s.get("状态") == "YES"]
         no_signals = [s for s in valid_signals if s.get("状态") == "NO"]
 
