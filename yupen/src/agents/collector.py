@@ -9,6 +9,8 @@ import numpy as np
 from datetime import datetime, timedelta
 import logging
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import akshare as ak
 
 import requests
@@ -20,49 +22,59 @@ logger = logging.getLogger(__name__)
 
 _DANJUAN_PE_CACHE = None
 _DANJUAN_PE_CACHE_TIME = None
+_DANJUAN_PE_LOCK = threading.Lock()   # 防止多线程并发写缓存
+_BS_LOCK = threading.Lock()           # baostock 不支持并发登录，序列化访问
+_JS_LOCK = threading.Lock()           # py_mini_racer (V8) 全局地址空间只能单线程初始化
 
 def _fetch_danjuan_pe_data() -> Optional[Dict[str, Dict]]:
     global _DANJUAN_PE_CACHE, _DANJUAN_PE_CACHE_TIME
-    
+
     now = datetime.now()
+    # 快速路径：无锁预检（CPython GIL 保证读取原子性）
     if _DANJUAN_PE_CACHE and _DANJUAN_PE_CACHE_TIME:
         if (now - _DANJUAN_PE_CACHE_TIME).total_seconds() < 3600:
             return _DANJUAN_PE_CACHE
-    
-    try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-        }
-        url = 'https://danjuanapp.com/djapi/index_eva/dj'
-        resp = requests.get(url, headers=headers, timeout=10)
-        data = resp.json()
-        
-        result = {}
-        for item in data['data']['items']:
-            name = item.get('name', '')
-            pe = item.get('pe', 0)
-            pe_percentile = item.get('pe_percentile', 0)
-            pb = item.get('pb', 0)
-            pb_percentile = item.get('pb_percentile', 0)
-            
-            if pe_percentile <= 1:
-                pe_percentile = pe_percentile * 100
-            if pb_percentile <= 1:
-                pb_percentile = pb_percentile * 100
-            
-            result[name] = {
-                'PE': round(pe, 2) if pe else None,
-                'PE百分位': round(pe_percentile, 2) if pe_percentile else None,
-                'PB': round(pb, 2) if pb else None,
-                'PB百分位': round(pb_percentile, 2) if pb_percentile else None,
+
+    with _DANJUAN_PE_LOCK:
+        # 双检：持锁后再次确认，防止多线程重复请求
+        if _DANJUAN_PE_CACHE and _DANJUAN_PE_CACHE_TIME:
+            if (now - _DANJUAN_PE_CACHE_TIME).total_seconds() < 3600:
+                return _DANJUAN_PE_CACHE
+
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
             }
-        
-        _DANJUAN_PE_CACHE = result
-        _DANJUAN_PE_CACHE_TIME = now
-        return result
-    except Exception as e:
-        logger.warning(f"获取蛋卷基金PE数据失败: {e}")
-        return None
+            url = 'https://danjuanapp.com/djapi/index_eva/dj'
+            resp = requests.get(url, headers=headers, timeout=10)
+            data = resp.json()
+
+            result = {}
+            for item in data['data']['items']:
+                name = item.get('name', '')
+                pe = item.get('pe', 0)
+                pe_percentile = item.get('pe_percentile', 0)
+                pb = item.get('pb', 0)
+                pb_percentile = item.get('pb_percentile', 0)
+
+                if pe_percentile <= 1:
+                    pe_percentile = pe_percentile * 100
+                if pb_percentile <= 1:
+                    pb_percentile = pb_percentile * 100
+
+                result[name] = {
+                    'PE': round(pe, 2) if pe else None,
+                    'PE百分位': round(pe_percentile, 2) if pe_percentile else None,
+                    'PB': round(pb, 2) if pb else None,
+                    'PB百分位': round(pb_percentile, 2) if pb_percentile else None,
+                }
+
+            _DANJUAN_PE_CACHE = result       # 在锁内写入，安全
+            _DANJUAN_PE_CACHE_TIME = now
+            return result
+        except Exception as e:
+            logger.warning(f"获取蛋卷基金PE数据失败: {e}")
+            return None
 
 
 def fetch_pe_percentile(index_name: str) -> Optional[Dict[str, Any]]:
@@ -153,7 +165,8 @@ class DataSourceManager:
         import akshare as ak
 
         symbol = f"{market}{code}"
-        df = ak.stock_zh_index_daily(symbol=symbol)
+        with _JS_LOCK:
+            df = ak.stock_zh_index_daily(symbol=symbol)
 
         if df is None or len(df) == 0:
             return None
@@ -170,42 +183,43 @@ class DataSourceManager:
     def _fetch_from_baostock(self, code: str, market: str, days: int) -> Optional[Dict]:
         import baostock as bs
 
-        lg = bs.login()
-        if lg.error_code != '0':
-            return None
-
-        try:
-            bs_market = "sh" if market == "sh" else "sz"
-            bs_code = f"{bs_market}.{code}"
-            rs = bs.query_history_k_data_plus(
-                bs_code,
-                'date,open,high,low,close,volume',
-                start_date=(datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d'),
-                end_date=datetime.now().strftime('%Y-%m-%d'),
-                frequency='d'
-            )
-
-            if rs.error_code != '0':
+        with _BS_LOCK:
+            lg = bs.login()
+            if lg.error_code != '0':
                 return None
 
-            data_list = []
-            while rs.next():
-                data_list.append(rs.get_row_data())
+            try:
+                bs_market = "sh" if market == "sh" else "sz"
+                bs_code = f"{bs_market}.{code}"
+                rs = bs.query_history_k_data_plus(
+                    bs_code,
+                    'date,open,high,low,close,volume',
+                    start_date=(datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d'),
+                    end_date=datetime.now().strftime('%Y-%m-%d'),
+                    frequency='d'
+                )
 
-            if len(data_list) == 0:
-                return None
+                if rs.error_code != '0':
+                    return None
 
-            df = pd.DataFrame(data_list, columns=rs.fields)
-            df['date'] = pd.to_datetime(df['date'])
-            df['open'] = pd.to_numeric(df['open'], errors='coerce')
-            df['high'] = pd.to_numeric(df['high'], errors='coerce')
-            df['low'] = pd.to_numeric(df['low'], errors='coerce')
-            df['close'] = pd.to_numeric(df['close'], errors='coerce')
-            df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+                data_list = []
+                while rs.next():
+                    data_list.append(rs.get_row_data())
 
-            return {'data': df, 'symbol': bs_code}
-        finally:
-            bs.logout()
+                if len(data_list) == 0:
+                    return None
+
+                df = pd.DataFrame(data_list, columns=rs.fields)
+                df['date'] = pd.to_datetime(df['date'])
+                df['open'] = pd.to_numeric(df['open'], errors='coerce')
+                df['high'] = pd.to_numeric(df['high'], errors='coerce')
+                df['low'] = pd.to_numeric(df['low'], errors='coerce')
+                df['close'] = pd.to_numeric(df['close'], errors='coerce')
+                df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+
+                return {'data': df, 'symbol': bs_code}
+            finally:
+                bs.logout()
 
     def _fetch_from_eastmoney(self, code: str, market: str, days: int) -> Optional[Dict]:
         import akshare as ak
@@ -242,7 +256,8 @@ class DataSourceManager:
         import akshare as ak
 
         symbol = f"{market}{code}"
-        df = ak.stock_zh_index_daily_tx(symbol=symbol)
+        with _JS_LOCK:
+            df = ak.stock_zh_index_daily_tx(symbol=symbol)
 
         if df is None or len(df) == 0:
             return None
@@ -435,7 +450,8 @@ class DataSourceManager:
 
         try:
             prefix = "sh" if code.startswith("6") else "sz"
-            df = ak.stock_zh_a_daily(symbol=f"{prefix}{code}", adjust="qfq")
+            with _JS_LOCK:
+                df = ak.stock_zh_a_daily(symbol=f"{prefix}{code}", adjust="qfq")
 
             if df is None or len(df) == 0:
                 return None
@@ -468,7 +484,8 @@ class DataSourceManager:
             return None  # 无前缀映射则跳过，由下一个数据源接手
 
         try:
-            df = ak.stock_zh_index_daily_tx(symbol=f"{tx_prefix}{code}")
+            with _JS_LOCK:
+                df = ak.stock_zh_index_daily_tx(symbol=f"{tx_prefix}{code}")
             if df is None or len(df) == 0 or 'date' not in df.columns:
                 return None
             df['date'] = pd.to_datetime(df['date'])
@@ -492,48 +509,71 @@ class DataCollectorAgent(BaseAgent):
         indices = context.get("indices", [])
         days = context.get("lookback_days", 60)
 
+        # 主线程预拉取蛋卷PE数据，填充缓存，避免工作线程并发抢锁后重复请求网络
+        _fetch_danjuan_pe_data()
+
         all_data = {}
         failed_indices = []
         successful_count = 0
 
-        for index_info in indices:
+        max_workers = int(os.environ.get("YUPEN_MAX_WORKERS", min(len(indices) or 1, 8)))
+        self.log_info(f"并发采集，workers={max_workers}，标的数={len(indices)}")
+
+        def _fetch_one(index_info):
             name = index_info["name"]
             code = index_info["code"]
             market = index_info["market"]
-
             self.log_info(f"正在采集 {name} ({code}) 数据...")
+            data_result = self.data_source_manager.fetch_index_data(code, market, days)
+            pe_data = fetch_pe_percentile(name)
+            return name, code, market, data_result, pe_data
 
-            result = self.data_source_manager.fetch_index_data(code, market, days)
-
-            if result is not None and result.get('data') is not None and len(result['data']) > 0:
-                all_data[name] = {
-                    "code": code,
-                    "market": market,
-                    "data": result['data'],
-                    "数据源": result.get('数据源', '未知'),
-                    "数据日期": result.get('数据日期', 'N/A'),
-                    "采集时间": result.get('采集时间', 'N/A')
-                }
-                
-                pe_data = fetch_pe_percentile(name)
-                if pe_data:
-                    all_data[name]["PE"] = pe_data.get("PE")
-                    all_data[name]["PE百分位"] = pe_data.get("PE百分位")
-                    all_data[name]["PE日期"] = pe_data.get("PE日期")
-                
-                successful_count += 1
-                self.log_info(f"{name} 数据采集成功 (数据源: {result.get('数据源', '未知')}, 数据日期: {result.get('数据日期', 'N/A')})")
-            else:
-                self.log_error(f"{name} 数据采集失败")
-                failed_indices.append(name)
-                all_data[name] = {
-                    "code": code,
-                    "market": market,
-                    "data": None,
-                    "数据源": "获取失败",
-                    "数据日期": "N/A",
-                    "采集时间": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                }
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_info = {executor.submit(_fetch_one, idx): idx for idx in indices}
+            for future in as_completed(future_to_info):
+                index_info = future_to_info[future]
+                name = index_info["name"]
+                code = index_info["code"]
+                market = index_info["market"]
+                try:
+                    _, _, _, result, pe_data = future.result()
+                    if result is not None and result.get('data') is not None and len(result['data']) > 0:
+                        all_data[name] = {
+                            "code": code,
+                            "market": market,
+                            "data": result['data'],
+                            "数据源": result.get('数据源', '未知'),
+                            "数据日期": result.get('数据日期', 'N/A'),
+                            "采集时间": result.get('采集时间', 'N/A')
+                        }
+                        if pe_data:
+                            all_data[name]["PE"] = pe_data.get("PE")
+                            all_data[name]["PE百分位"] = pe_data.get("PE百分位")
+                            all_data[name]["PE日期"] = pe_data.get("PE日期")
+                        successful_count += 1
+                        self.log_info(f"{name} 数据采集成功 (数据源: {result.get('数据源', '未知')}, 数据日期: {result.get('数据日期', 'N/A')})")
+                    else:
+                        self.log_error(f"{name} 数据采集失败")
+                        failed_indices.append(name)
+                        all_data[name] = {
+                            "code": code,
+                            "market": market,
+                            "data": None,
+                            "数据源": "获取失败",
+                            "数据日期": "N/A",
+                            "采集时间": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                except Exception as e:
+                    self.log_error(f"{name} 采集异常: {e}")
+                    failed_indices.append(name)
+                    all_data[name] = {
+                        "code": code,
+                        "market": market,
+                        "data": None,
+                        "数据源": "获取失败",
+                        "数据日期": "N/A",
+                        "采集时间": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
 
         result = {
             "status": "partial_success" if successful_count > 0 else "failed",
