@@ -1,3 +1,6 @@
 .qoder/
 .workbuddy/
 .DS_Store
+.vscode/
+.claude/
+.gemini/
