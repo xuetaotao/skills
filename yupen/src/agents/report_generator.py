@@ -24,14 +24,22 @@ class ReportAgent(BaseAgent):
     }
 
     MARKET_ICONS = {
-        "A股": "🇨🇳",
+        "A股": "cn",
         "A股窄基行业趋势": "🎯",
         "A股个股趋势": "📌",
-        "美股": "🇺🇸",
-        "日本市场": "🇯🇵",
-        "港股市场": "🇭🇰",
+        "美股": "us",
+        "日本市场": "jp",
+        "港股市场": "hk",
         "大宗商品": "🏅",
         "其他": "🌐",
+    }
+
+    # 内联 SVG 国旗图标，解决 Windows 不渲染国旗 emoji 的问题
+    FLAG_SVGS = {
+        "cn": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#DE2910"/><polygon points="5,2 6.1,5.5 3,3.3 7,3.3 3.9,5.5" fill="#FFDE00"/><polygon points="10,1 10.4,2.2 9.1,1.5 10.9,1.5 9.6,2.2" fill="#FFDE00"/><polygon points="12,3 12.4,4.2 11.1,3.5 12.9,3.5 11.6,4.2" fill="#FFDE00"/><polygon points="12,6 12.4,7.2 11.1,6.5 12.9,6.5 11.6,7.2" fill="#FFDE00"/><polygon points="10,8 10.4,9.2 9.1,8.5 10.9,8.5 9.6,9.2" fill="#FFDE00"/></svg>',
+        "us": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFF"/><rect y="0" width="30" height="1.54" fill="#B22234"/><rect y="3.08" width="30" height="1.54" fill="#B22234"/><rect y="6.16" width="30" height="1.54" fill="#B22234"/><rect y="9.24" width="30" height="1.54" fill="#B22234"/><rect y="15.38" width="30" height="1.54" fill="#B22234"/><rect y="18.46" width="30" height="1.54" fill="#B22234"/><rect y="12.3" width="30" height="1.54" fill="#B22234"/><rect width="12" height="10.8" fill="#3C3B6E"/></svg>',
+        "jp": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFF"/><circle cx="15" cy="10" r="6" fill="#BC002D"/></svg>',
+        "hk": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#DE2910"/><circle cx="15" cy="10" r="4" fill="#FFDE00" stroke="#DE2910" stroke-width="0.5"/><circle cx="15" cy="5.5" r="1.5" fill="#FFDE00"/></svg>',
     }
 
     def __init__(self):
@@ -709,6 +717,24 @@ class ReportAgent(BaseAgent):
             font-size: 1.2em;
         }}
 
+        .market-group-title .market-icon.flag-icon {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 16px;
+            border-radius: 2px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }}
+
+        .market-group-title .market-icon.flag-icon svg {{
+            width: 100%;
+            height: 100%;
+            display: block;
+        }}
+
         .market-date-badge {{
             font-size: 0.82em;
             color: #7b1fa2;
@@ -983,10 +1009,15 @@ class ReportAgent(BaseAgent):
             )
             stale_tip = " 非当日数据" if is_stale else ""
             name_header = "股票名称" if market_label == "A股个股趋势" else "指数名称"
+            # 国旗图标用内联SVG，其他emoji直接显示
+            if market_icon in self.FLAG_SVGS:
+                icon_html = f'<span class="market-icon flag-icon">{self.FLAG_SVGS[market_icon]}</span>'
+            else:
+                icon_html = f'<span class="market-icon">{market_icon}</span>'
             sections.append(f"""
             <div class="market-group-header">
                 <div class="market-group-title">
-                    <span class="market-icon">{market_icon}</span>
+                    {icon_html}
                     <span>{market_label}</span>
                 </div>
                 <span class="market-date-badge" style="{date_style}">{date_icon} {data_date}{stale_tip}</span>
