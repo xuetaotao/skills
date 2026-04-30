@@ -28,31 +28,31 @@
 
 ## 文件说明
 
-### [WorkFlow.md](./WorkFlow.md)
+### [主流程文件][workflow]
 
 日常使用的主流程文件。
 
 平时写文章时，优先打开这个文件，根据里面的流程推进写作。
 
-### [prompts/观点拓展Prompt.md](./prompts/观点拓展Prompt.md)
+### [观点拓展 Prompt][prompt-idea-expansion]
 
 当我的想法还比较松散、还不确定文章主线时使用。
 
 它的作用是让 AI 先不写正文，而是帮我拓展观点、提炼概念、补充角度和建议文章主线。
 
-### [prompts/网页端轻量初稿Prompt.md](./prompts/网页端轻量初稿Prompt.md)
+### [网页端轻量初稿 Prompt][prompt-light-draft]
 
 常规写作时最常用的初稿 Prompt。
 
 适合我已经有主题和想法，希望 AI 直接写一版初稿，同时在初稿中自然吸收必要拓展。
 
-### [prompts/极简初稿Prompt.md](./prompts/极简初稿Prompt.md)
+### [极简初稿 Prompt][prompt-simple-draft]
 
 更短的快速成稿 Prompt。
 
 适合我想快速看到一版文章，不想输入太多规则的时候使用。
 
-### [prompts/质量检查Prompt.md](./prompts/极简初稿Prompt.md)
+### [质量检查 Prompt][prompt-quality-check]
 
 当文章基本满意后使用。
 
@@ -76,10 +76,10 @@
 
 然后根据情况选择：
 
-- 想法还松散：使用 `观点拓展Prompt.md`
-- 想法比较清楚：使用 `网页端轻量初稿Prompt.md`
-- 想快速成稿：使用 `极简初稿Prompt.md`
-- 初稿基本满意：使用 `质量检查Prompt.md`
+- 想法还松散：使用 [观点拓展 Prompt][prompt-idea-expansion]
+- 想法比较清楚：使用 [网页端轻量初稿 Prompt][prompt-light-draft]
+- 想快速成稿：使用 [极简初稿 Prompt][prompt-simple-draft]
+- 初稿基本满意：使用 [质量检查 Prompt][prompt-quality-check]
 
 ## 写作原则
 
@@ -104,3 +104,9 @@ AI 在协作时需要遵守：
 也可以理解为：
 
 > 我提出方向，AI 帮我展开；我提供判断，AI 帮我补充盲区；我审核取舍，AI 帮我修改优化。
+
+[workflow]: ./WorkFlow.md
+[prompt-idea-expansion]: ./prompts/观点拓展Prompt.md
+[prompt-light-draft]: ./prompts/网页端轻量初稿Prompt.md
+[prompt-simple-draft]: ./prompts/极简初稿Prompt.md
+[prompt-quality-check]: ./prompts/质量检查Prompt.md
