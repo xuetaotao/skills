@@ -229,10 +229,10 @@ def _display_results(metrics: dict, output_dir: str):
     print(f"  总交易次数:   {metrics.get('total_trades', 0)}")
     print("━" * 50)
     print(f"\n📁 结果已保存至: {output_dir}")
-    print("   ├── summary.txt          # 文本摘要")
-    print("   ├── report.json          # 完整数据报告")
-    print("   ├── equity_curve.png     # 收益曲线 + 回撤图")
-    print("   └── monthly_heatmap.png  # 月度收益热力图")
+    print("   ├── backtest_*_summary.txt      # 文本摘要")
+    print("   ├── backtest_*_report.json       # 完整数据报告")
+    print("   ├── backtest_*_equity_curve.png  # 收益曲线 + 回撤图")
+    print("   └── backtest_*_monthly_heatmap.png  # 月度收益热力图")
 
 
 def main():

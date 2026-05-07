@@ -13,7 +13,22 @@
 
 ## 快速开始
 
-### 安装依赖
+### 一键运行
+
+**Windows**：
+```powershell
+.\run_windows.ps1
+```
+
+**Linux/macOS**：
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+脚本会自动创建虚拟环境、安装依赖并启动程序。
+
+### 手动安装
 
 ```bash
 pip install -r requirements.txt
@@ -63,12 +78,17 @@ RSI高于70或MACD死叉时卖出50%，跌破20日均线清仓。
 
 回测完成后，在 `outputs/` 目录下生成：
 
-| 文件 | 说明 |
-|------|------|
-| `summary.txt` | 文本摘要 |
-| `report.json` | 完整数据（含每日净值、交易记录） |
-| `equity_curve.png` | 收益曲线 + 回撤图 |
-| `monthly_heatmap.png` | 月度收益热力图 |
+```
+outputs/
+├── backtest_20260507_002350_均线趋势/     # 带时间戳+策略名的目录
+│   ├── backtest_20260507_002350_均线趋势_summary.txt
+│   ├── backtest_20260507_002350_均线趋势_report.json
+│   ├── backtest_20260507_002350_均线趋势_equity_curve.png
+│   └── backtest_20260507_002350_均线趋势_monthly_heatmap.png
+├── latest_summary.txt                      # 最新报告快捷方式
+├── latest_report.json
+└── index.html                              # 跳转最新报告
+```
 
 ## 核心指标
 
@@ -118,15 +138,33 @@ python -m src --api-key "your-key" --base-url "https://your-api.com/v1"
 ```
 strategyBacktracking/
 ├── src/
-│   ├── main.py           # CLI 入口
-│   ├── config.py         # 系统配置
-│   ├── data/             # 数据层（akshare）
-│   ├── strategy/         # 策略层（规则模型+指标+规则引擎）
-│   ├── llm/              # LLM 交互层
-│   ├── engine/           # 回测引擎
-│   ├── analytics/        # 绩效分析
-│   └── visualization/    # 可视化
-├── outputs/              # 回测结果输出
+│   ├── main.py              # CLI 入口
+│   ├── __main__.py          # python -m src 支持
+│   ├── config.py            # 系统配置
+│   ├── data/                 # 数据层
+│   │   ├── fetcher.py        #   akshare 数据获取（多源降级）
+│   │   └── cache.py          #   本地 CSV 缓存
+│   ├── strategy/            # 策略层
+│   │   ├── models.py         #   规则数据模型（Signal/Condition/Action）
+│   │   ├── indicators.py     #   技术指标计算（MA/RSI/MACD/BOLL/ATR）
+│   │   └── rule_engine.py     #   规则引擎（逐日评估生成信号）
+│   ├── llm/                  # LLM 交互层
+│   │   ├── parser.py         #   策略解析器（LLM + 降级关键词匹配）
+│   │   ├── prompts.py        #   Prompt 模板
+│   │   └── validator.py      #   规则校验 & 自动修正
+│   ├── engine/               # 回测引擎
+│   │   ├── backtester.py     #   核心回测循环
+│   │   ├── portfolio.py      #   组合管理（资金/仓位/交易）
+│   │   └── trade.py          #   交易记录 & 持仓模型
+│   ├── analytics/            # 绩效分析
+│   │   ├── metrics.py        #   指标计算（夏普/回撤/Alpha/Beta等）
+│   │   └── report.py         #   报告生成（文本+JSON）
+│   └── visualization/        # 可视化
+│       └── chart.py           #   收益曲线/回撤图/月度热力图
+├── outputs/                   # 回测结果输出
+├── .gitignore
+├── run.sh                     # Linux/macOS 一键运行
+├── run_windows.ps1            # Windows 一键运行
 ├── requirements.txt
 └── README.md
 ```

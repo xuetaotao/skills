@@ -1,12 +1,23 @@
 """
 报告生成器
-生成文本摘要和JSON格式报告
+生成文本摘要和JSON格式报告，文件名含时间戳和策略概括
 """
 import json
 import os
+import re
 from datetime import datetime
 
 from src.config import OUTPUTS_DIR
+
+
+def _sanitize_name(name: str, max_len: int = 20) -> str:
+    """将策略名转为安全的文件名片段"""
+    # 去除特殊字符，保留中文/字母/数字
+    name = re.sub(r'[\\/:*?"<>|]', '', name)
+    name = name.strip().replace(' ', '_')
+    if len(name) > max_len:
+        name = name[:max_len]
+    return name if name else "strategy"
 
 
 def generate_report(backtest_result: dict, metrics: dict) -> str:
@@ -15,12 +26,19 @@ def generate_report(backtest_result: dict, metrics: dict) -> str:
     返回: 报告输出目录路径
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.join(OUTPUTS_DIR, f"backtest_{timestamp}")
+    strategy_name = backtest_result.get("strategy_name", "")
+    strategy_slug = _sanitize_name(strategy_name)
+
+    # 输出目录：backtest_20260507_002350_均线趋势/
+    output_dir = os.path.join(OUTPUTS_DIR, f"backtest_{timestamp}_{strategy_slug}")
     os.makedirs(output_dir, exist_ok=True)
+
+    # 文件名前缀：backtest_20260507_002350_均线趋势
+    file_prefix = f"backtest_{timestamp}_{strategy_slug}"
 
     # 1. 生成文本摘要
     summary = _generate_summary(backtest_result, metrics)
-    summary_path = os.path.join(output_dir, "summary.txt")
+    summary_path = os.path.join(output_dir, f"{file_prefix}_summary.txt")
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write(summary)
 
@@ -42,11 +60,40 @@ def generate_report(backtest_result: dict, metrics: dict) -> str:
         "trades": backtest_result.get("trades", []),
         "strategy_rules": backtest_result.get("strategy_rules", {}),
     }
-    json_path = os.path.join(output_dir, "report.json")
+    json_path = os.path.join(output_dir, f"{file_prefix}_report.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_data, f, ensure_ascii=False, indent=2, default=str)
 
+    # 3. 生成 latest 快捷文件（参考 yupen）
+    latest_summary = os.path.join(OUTPUTS_DIR, "latest_summary.txt")
+    latest_json = os.path.join(OUTPUTS_DIR, "latest_report.json")
+    with open(latest_summary, "w", encoding="utf-8") as f:
+        f.write(summary)
+    with open(latest_json, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, ensure_ascii=False, indent=2, default=str)
+
+    # 4. 生成 index.html 跳转页
+    index_html = os.path.join(OUTPUTS_DIR, "index.html")
+    index_content = """<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0; url=latest_report.html">
+    <title>策略回测报告</title>
+</head>
+<body>
+    <p>正在跳转到最新报告...</p>
+    <p>如果没有自动跳转，请<a href="latest_report.html">点击这里</a></p>
+</body>
+</html>"""
+    with open(index_html, "w", encoding="utf-8") as f:
+        f.write(index_content)
+
     return output_dir
+
+
+def get_file_prefix(output_dir: str) -> str:
+    """从输出目录名中提取文件名前缀"""
+    return os.path.basename(output_dir)
 
 
 def _generate_summary(result: dict, metrics: dict) -> str:

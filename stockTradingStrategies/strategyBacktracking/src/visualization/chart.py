@@ -27,18 +27,22 @@ def plot_all(nav_history: list, benchmark_nav: dict, metrics: dict,
     生成所有图表
     返回: 生成的图片路径列表
     """
+    from src.analytics.report import get_file_prefix
+    file_prefix = get_file_prefix(output_dir)
+
     images = []
 
     try:
         # 1. 收益曲线 + 回撤图（上下组合）
-        img1 = plot_equity_with_drawdown(nav_history, benchmark_nav, output_dir, strategy_name)
+        img1 = plot_equity_with_drawdown(
+            nav_history, benchmark_nav, output_dir, strategy_name, file_prefix)
         images.append(img1)
     except Exception as e:
         logger.warning(f"生成收益曲线图失败: {e}")
 
     try:
         # 2. 月度收益热力图
-        img2 = plot_monthly_heatmap(nav_history, output_dir, strategy_name)
+        img2 = plot_monthly_heatmap(nav_history, output_dir, strategy_name, file_prefix)
         images.append(img2)
     except Exception as e:
         logger.warning(f"生成月度热力图失败: {e}")
@@ -47,7 +51,8 @@ def plot_all(nav_history: list, benchmark_nav: dict, metrics: dict,
 
 
 def plot_equity_with_drawdown(nav_history: list, benchmark_nav: dict,
-                               output_dir: str, strategy_name: str = "") -> str:
+                               output_dir: str, strategy_name: str = "",
+                               file_prefix: str = "") -> str:
     """收益曲线 + 回撤图"""
     if not nav_history:
         return ""
@@ -114,7 +119,7 @@ def plot_equity_with_drawdown(nav_history: list, benchmark_nav: dict,
 
     plt.tight_layout()
 
-    filepath = os.path.join(output_dir, "equity_curve.png")
+    filepath = os.path.join(output_dir, f"{file_prefix}_equity_curve.png" if file_prefix else "equity_curve.png")
     fig.savefig(filepath, dpi=150, bbox_inches='tight')
     plt.close(fig)
 
@@ -123,7 +128,8 @@ def plot_equity_with_drawdown(nav_history: list, benchmark_nav: dict,
 
 
 def plot_monthly_heatmap(nav_history: list, output_dir: str,
-                         strategy_name: str = "") -> str:
+                         strategy_name: str = "",
+                         file_prefix: str = "") -> str:
     """月度收益热力图"""
     if not nav_history:
         return ""
@@ -187,7 +193,7 @@ def plot_monthly_heatmap(nav_history: list, output_dir: str,
     plt.colorbar(im, ax=ax, label='月度收益率', shrink=0.8)
 
     plt.tight_layout()
-    filepath = os.path.join(output_dir, "monthly_heatmap.png")
+    filepath = os.path.join(output_dir, f"{file_prefix}_monthly_heatmap.png" if file_prefix else "monthly_heatmap.png")
     fig.savefig(filepath, dpi=150, bbox_inches='tight')
     plt.close(fig)
 
