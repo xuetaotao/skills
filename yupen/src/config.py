@@ -33,6 +33,8 @@ INDICES = [
     {"name": "纳斯达克综合指数", "code": ".IXIC", "market": "us"},
     {"name": "标普500", "code": ".INX", "market": "us"},
     {"name": "日经225", "code": "N225", "market": "jp"},
+    {"name": "韩国KOSPI", "code": "KS11", "market": "kr"},
+    {"name": "台湾加权指数", "code": "TWII", "market": "tw"},
     {"name": "恒生指数", "code": "HSI", "market": "hk"},
     {"name": "恒生科技指数", "code": "HSTECH", "market": "hk"},
     {"name": "伦敦金现", "code": "XAU", "market": "metal"},

@@ -19,6 +19,8 @@ class ReportAgent(BaseAgent):
         "stock": "A股个股趋势",
         "us": "美股",
         "jp": "日本市场",
+        "kr": "韩国市场",
+        "tw": "台湾市场",
         "hk": "港股市场",
         "metal": "大宗商品"
     }
@@ -29,6 +31,8 @@ class ReportAgent(BaseAgent):
         "A股个股趋势": "📌",
         "美股": "us",
         "日本市场": "jp",
+        "韩国市场": "kr",
+        "台湾市场": "tw",
         "港股市场": "hk",
         "大宗商品": "🏅",
         "其他": "🌐",
@@ -39,6 +43,8 @@ class ReportAgent(BaseAgent):
         "cn": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#DE2910"/><polygon points="5,2 6.1,5.5 3,3.3 7,3.3 3.9,5.5" fill="#FFDE00"/><polygon points="10,1 10.4,2.2 9.1,1.5 10.9,1.5 9.6,2.2" fill="#FFDE00"/><polygon points="12,3 12.4,4.2 11.1,3.5 12.9,3.5 11.6,4.2" fill="#FFDE00"/><polygon points="12,6 12.4,7.2 11.1,6.5 12.9,6.5 11.6,7.2" fill="#FFDE00"/><polygon points="10,8 10.4,9.2 9.1,8.5 10.9,8.5 9.6,9.2" fill="#FFDE00"/></svg>',
         "us": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFF"/><rect y="0" width="30" height="1.54" fill="#B22234"/><rect y="3.08" width="30" height="1.54" fill="#B22234"/><rect y="6.16" width="30" height="1.54" fill="#B22234"/><rect y="9.24" width="30" height="1.54" fill="#B22234"/><rect y="15.38" width="30" height="1.54" fill="#B22234"/><rect y="18.46" width="30" height="1.54" fill="#B22234"/><rect y="12.3" width="30" height="1.54" fill="#B22234"/><rect width="12" height="10.8" fill="#3C3B6E"/></svg>',
         "jp": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFF"/><circle cx="15" cy="10" r="6" fill="#BC002D"/></svg>',
+        "kr": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFF"/><circle cx="15" cy="10" r="4.8" fill="#CD2E3A"/><path d="M15 5.2a4.8 4.8 0 0 1 0 9.6 2.4 2.4 0 0 1 0-4.8 2.4 2.4 0 0 0 0-4.8z" fill="#0047A0"/><g stroke="#111" stroke-width="1.2"><path d="M6.2 4.2l3.2 2.4M5.4 5.4l3.2 2.4M21.4 12.2l3.2 2.4M20.6 13.4l3.2 2.4M22.9 4.3l-3.2 2.4M24 5.4l-3.2 2.4M8.6 12.2l-3.2 2.4M9.4 13.4l-3.2 2.4"/></g></svg>',
+        "tw": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FE0000"/><rect width="15" height="10" fill="#000095"/><circle cx="7.5" cy="5" r="2.2" fill="#FFF"/><g stroke="#FFF" stroke-width="0.8"><path d="M7.5 1.5v7M4 5h7M5 2.5l5 5M10 2.5l-5 5"/></g></svg>',
         "hk": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#DE2910"/><circle cx="15" cy="10" r="4" fill="#FFDE00" stroke="#DE2910" stroke-width="0.5"/><circle cx="15" cy="5.5" r="1.5" fill="#FFDE00"/></svg>',
     }
 
@@ -963,7 +969,7 @@ class ReportAgent(BaseAgent):
         return "其他"
 
     def _group_ranked_signals_by_market(self, ranked_signals: List, analyzed_data: Dict, raw_data: Dict) -> Dict[str, Dict[str, Any]]:
-        group_order = ["A股", "美股", "日本市场", "港股市场", "大宗商品", "A股窄基行业趋势", "A股个股趋势", "其他"]
+        group_order = ["A股", "美股", "日本市场", "韩国市场", "台湾市场", "港股市场", "大宗商品", "A股窄基行业趋势", "A股个股趋势", "其他"]
         grouped = {label: {"items": [], "dates": []} for label in group_order}
 
         for item in ranked_signals:

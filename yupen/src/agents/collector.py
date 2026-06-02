@@ -108,6 +108,13 @@ class DataSourceManager:
             sources = [("新浪美股指数", self._fetch_from_us_index)]
         elif market == "jp":
             sources = [("新浪全球指数", self._fetch_from_jp_index)]
+        elif market == "kr":
+            sources = [("新浪全球指数", self._fetch_from_global_index)]
+        elif market == "tw":
+            sources = [
+                ("台湾证交所", self._fetch_from_tw_index_twse),
+                ("新浪全球指数", self._fetch_from_global_index),
+            ]
         elif market == "hk":
             sources = [
                 ("新浪港股指数", self._fetch_from_hk_index_sina),
@@ -337,15 +344,133 @@ class DataSourceManager:
             return None
 
     # 新浪全球指数的中文名称映射（code → akshare symbol）
-    _JP_CODE_TO_SINA_SYMBOL = {
+    _GLOBAL_CODE_TO_SINA_SYMBOL = {
         "N225": "日经225指数",
+        "KS11": "首尔综合指数",
+        "TWII": "中国台湾加权指数",
     }
 
     def _fetch_from_jp_index(self, code: str, market: str, days: int) -> Optional[Dict]:
+        return self._fetch_from_global_index(code, market, days)
+
+    def _fetch_from_tw_index_twse(self, code: str, market: str, days: int) -> Optional[Dict]:
+        if code != "TWII":
+            return None
+
+        try:
+            frames = []
+            current_month = datetime.now().replace(day=1)
+            month_count = max(4, days // 20 + 3)
+
+            headers = {
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'application/json, text/javascript, */*; q=0.01',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Referer': 'https://www.twse.com.tw/zh/page/trading/indices/MI_5MINS_HIST.html',
+            }
+            for month_offset in range(month_count - 1, -1, -1):
+                month_start = self._shift_month(current_month, -month_offset)
+                date_param = month_start.strftime('%Y%m%d')
+                payload = self._fetch_twse_taiex_month(headers, date_param)
+                if payload.get('stat') != 'OK' or not payload.get('data'):
+                    continue
+
+                month_df = pd.DataFrame(payload['data'], columns=payload['fields'])
+                if month_df.empty:
+                    continue
+
+                month_df.rename(
+                    columns={
+                        '日期': 'date',
+                        '開盤指數': 'open',
+                        '最高指數': 'high',
+                        '最低指數': 'low',
+                        '收盤指數': 'close',
+                    },
+                    inplace=True,
+                )
+                for column in ['open', 'high', 'low', 'close']:
+                    month_df[column] = pd.to_numeric(
+                        month_df[column].astype(str).str.replace(',', '', regex=False),
+                        errors='coerce',
+                    )
+                month_df['date'] = month_df['date'].apply(self._parse_twse_roc_date)
+                month_df = month_df[
+                    (month_df['date'].dt.year == month_start.year)
+                    & (month_df['date'].dt.month == month_start.month)
+                ]
+                if month_df.empty:
+                    continue
+
+                month_df['volume'] = 0
+                frames.append(month_df[['date', 'open', 'high', 'low', 'close', 'volume']])
+
+            if not frames:
+                return None
+
+            df = pd.concat(frames, ignore_index=True)
+            df.dropna(subset=['date', 'close'], inplace=True)
+            df = df.drop_duplicates(subset=['date']).sort_values('date').reset_index(drop=True)
+
+            if len(df) < 20:
+                return None
+
+            recent_gaps = df['date'].diff().dt.days.tail(min(30, len(df) - 1))
+            if not recent_gaps.empty and recent_gaps.max() > 10:
+                logger.warning(f"台湾证交所 获取 {code} 数据存在较大日期断层，改用备用源")
+                return None
+
+            if len(df) > days:
+                df = df.tail(days)
+
+            return {'data': df, 'symbol': code}
+        except Exception as error:
+            logger.warning(f"台湾证交所 获取 {code} 失败: {error}")
+            return None
+
+    @staticmethod
+    def _fetch_twse_taiex_month(headers: Dict[str, str], date_param: str) -> Dict[str, Any]:
+        url = 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST'
+        last_error = None
+
+        for attempt in range(3):
+            try:
+                params = {
+                    'date': date_param,
+                    'response': 'json',
+                    '_': f"{date_param}{attempt}",
+                }
+                response = requests.get(url, params=params, headers=headers, timeout=20)
+                response.raise_for_status()
+                payload = response.json()
+                payload_date = str(payload.get('date', ''))
+                if payload_date.startswith(date_param[:6]):
+                    return payload
+                last_error = f"返回月份不匹配: 请求 {date_param}, 返回 {payload_date}"
+            except Exception as error:
+                last_error = error
+
+        logger.warning(f"台湾证交所 获取月份 {date_param} 失败: {last_error}")
+        return {}
+
+    @staticmethod
+    def _shift_month(month_start: datetime, month_delta: int) -> datetime:
+        month_number = month_start.month - 1 + month_delta
+        year = month_start.year + month_number // 12
+        month = month_number % 12 + 1
+        return month_start.replace(year=year, month=month)
+
+    @staticmethod
+    def _parse_twse_roc_date(value: str):
+        year_part, month_part, day_part = str(value).split('/')
+        return pd.Timestamp(year=int(year_part) + 1911, month=int(month_part), day=int(day_part))
+
+    def _fetch_from_global_index(self, code: str, market: str, days: int) -> Optional[Dict]:
         import akshare as ak
 
         try:
-            sina_symbol = self._JP_CODE_TO_SINA_SYMBOL.get(code, code)
+            sina_symbol = self._GLOBAL_CODE_TO_SINA_SYMBOL.get(code, code)
             df = ak.index_global_hist_sina(symbol=sina_symbol)
 
             if df is None or len(df) == 0:
@@ -374,7 +499,7 @@ class DataSourceManager:
 
             return {'data': df, 'symbol': code}
         except Exception as e:
-            logger.warning(f"东方财富日本指数 获取 {code} 失败: {e}")
+            logger.warning(f"新浪全球指数 获取 {code} 失败: {e}")
             return None
 
     def _fetch_from_hk_index_em(self, code: str, market: str, days: int) -> Optional[Dict]:
