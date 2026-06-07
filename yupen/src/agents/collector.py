@@ -115,6 +115,8 @@ class DataSourceManager:
                 ("台湾证交所", self._fetch_from_tw_index_twse),
                 ("新浪全球指数", self._fetch_from_global_index),
             ]
+        elif market in ("in", "uk", "de"):
+            sources = [("新浪全球指数", self._fetch_from_global_index)]
         elif market == "hk":
             sources = [
                 ("新浪港股指数", self._fetch_from_hk_index_sina),
@@ -348,6 +350,9 @@ class DataSourceManager:
         "N225": "日经225指数",
         "KS11": "首尔综合指数",
         "TWII": "中国台湾加权指数",
+        "SENSEX": "印度孟买SENSEX指数",
+        "UKX": "英国富时100指数",
+        "DAX": "德国DAX 30种股价指数",
     }
 
     def _fetch_from_jp_index(self, code: str, market: str, days: int) -> Optional[Dict]:

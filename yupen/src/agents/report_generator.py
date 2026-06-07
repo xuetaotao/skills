@@ -21,6 +21,9 @@ class ReportAgent(BaseAgent):
         "jp": "日本市场",
         "kr": "韩国市场",
         "tw": "台湾市场",
+        "in": "印度市场",
+        "uk": "英国市场",
+        "de": "德国市场",
         "hk": "港股市场",
         "metal": "大宗商品"
     }
@@ -33,6 +36,9 @@ class ReportAgent(BaseAgent):
         "日本市场": "jp",
         "韩国市场": "kr",
         "台湾市场": "tw",
+        "印度市场": "in",
+        "英国市场": "uk",
+        "德国市场": "de",
         "港股市场": "hk",
         "大宗商品": "🏅",
         "其他": "🌐",
@@ -46,6 +52,9 @@ class ReportAgent(BaseAgent):
         "kr": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFF"/><circle cx="15" cy="10" r="4.8" fill="#CD2E3A"/><path d="M15 5.2a4.8 4.8 0 0 1 0 9.6 2.4 2.4 0 0 1 0-4.8 2.4 2.4 0 0 0 0-4.8z" fill="#0047A0"/><g stroke="#111" stroke-width="1.2"><path d="M6.2 4.2l3.2 2.4M5.4 5.4l3.2 2.4M21.4 12.2l3.2 2.4M20.6 13.4l3.2 2.4M22.9 4.3l-3.2 2.4M24 5.4l-3.2 2.4M8.6 12.2l-3.2 2.4M9.4 13.4l-3.2 2.4"/></g></svg>',
         "tw": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FE0000"/><rect width="15" height="10" fill="#000095"/><circle cx="7.5" cy="5" r="2.2" fill="#FFF"/><g stroke="#FFF" stroke-width="0.8"><path d="M7.5 1.5v7M4 5h7M5 2.5l5 5M10 2.5l-5 5"/></g></svg>',
         "hk": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#DE2910"/><circle cx="15" cy="10" r="4" fill="#FFDE00" stroke="#DE2910" stroke-width="0.5"/><circle cx="15" cy="5.5" r="1.5" fill="#FFDE00"/></svg>',
+        "in": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="6.67" fill="#FF9933"/><rect y="6.67" width="30" height="6.67" fill="#FFF"/><rect y="13.33" width="30" height="6.67" fill="#138808"/><circle cx="15" cy="10" r="2.4" fill="none" stroke="#000080" stroke-width="0.5"/><circle cx="15" cy="10" r="0.5" fill="#000080"/></svg>',
+        "uk": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#012169"/><path d="M0,0 30,20 M30,0 0,20" stroke="#FFF" stroke-width="4"/><path d="M0,0 30,20 M30,0 0,20" stroke="#C8102E" stroke-width="2"/><path d="M15,0 V20 M0,10 H30" stroke="#FFF" stroke-width="6"/><path d="M15,0 V20 M0,10 H30" stroke="#C8102E" stroke-width="3.5"/></svg>',
+        "de": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="6.67" fill="#000"/><rect y="6.67" width="30" height="6.67" fill="#DD0000"/><rect y="13.33" width="30" height="6.67" fill="#FFCE00"/></svg>',
     }
 
     def __init__(self):
@@ -340,7 +349,7 @@ class ReportAgent(BaseAgent):
         .index-table {{
             width: 100%;
             border-collapse: separate;
-            border-spacing: 0;
+            border-spacing: 0 7px;
         }}
 
         .index-table thead {{
@@ -364,7 +373,10 @@ class ReportAgent(BaseAgent):
 
         .index-table td {{
             padding: 15px 10px;
-            border-bottom: 1px solid #eee;
+        }}
+
+        .index-table tbody tr:not(.status-changed-row) td {{
+            box-shadow: inset 0 -1px 0 #f0f0f0;
         }}
 
         .index-table tbody tr {{
@@ -375,8 +387,8 @@ class ReportAgent(BaseAgent):
             background: #f8f9fa;
         }}
 
-        .index-table tbody tr:last-child td {{
-            border-bottom: none;
+        .index-table tbody tr:last-child:not(.status-changed-row) td {{
+            box-shadow: none;
         }}
 
         .status-yes {{
@@ -648,14 +660,22 @@ class ReportAgent(BaseAgent):
             text-shadow: 0 0 10px rgba(255, 138, 128, 0.5);
         }}
 
-        .status-changed-row {{
-            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
-            animation: pulse-highlight 2s ease-in-out infinite;
+        .status-changed-row td {{
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-top: 2px solid #ff9800;
+            border-bottom: 2px solid #ff9800;
         }}
 
-        @keyframes pulse-highlight {{
-            0%, 100% {{ box-shadow: inset 0 0 0 2px #ff9800; }}
-            50% {{ box-shadow: inset 0 0 0 4px #ff9800; }}
+        .status-changed-row td:first-child {{
+            border-left: 2px solid #ff9800;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }}
+
+        .status-changed-row td:last-child {{
+            border-right: 2px solid #ff9800;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
         }}
 
         .status-change-badge {{
@@ -964,12 +984,12 @@ class ReportAgent(BaseAgent):
         code = str(analyzed_data.get(index_name, {}).get("code", ""))
         if code.startswith("."):
             return "美股"
-        if code in {"XAU", "XAG", "CL", "OIL"}:
+        if code in {"XAU", "XAG", "CL", "OIL", "HG"}:
             return "大宗商品"
         return "其他"
 
     def _group_ranked_signals_by_market(self, ranked_signals: List, analyzed_data: Dict, raw_data: Dict) -> Dict[str, Dict[str, Any]]:
-        group_order = ["A股", "美股", "日本市场", "韩国市场", "台湾市场", "港股市场", "大宗商品", "A股窄基行业趋势", "A股个股趋势", "其他"]
+        group_order = ["A股", "美股", "日本市场", "韩国市场", "台湾市场", "印度市场", "英国市场", "德国市场", "港股市场", "大宗商品", "A股窄基行业趋势", "A股个股趋势", "其他"]
         grouped = {label: {"items": [], "dates": []} for label in group_order}
 
         for item in ranked_signals:
