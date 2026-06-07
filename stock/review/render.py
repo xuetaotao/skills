@@ -3,7 +3,7 @@
 把分组好的行情数据渲染成行情复盘汇总，风格沿用 yupen 报告的配色与卡片感。
 """
 
-from typing import Any, Callable, Dict, List, NamedTuple
+from typing import Any, Callable, Dict, List, NamedTuple, Optional
 
 # 内联国旗 SVG（取自 yupen 报告，解决部分系统不渲染国旗 emoji 的问题）
 FLAG_SVGS: Dict[str, str] = {
@@ -102,6 +102,12 @@ STOCK_COLUMNS = [COL_RANK, COL_MARKET, COL_NAME, COL_CODE, COL_PRICE, COL_CHANGE
 COMMODITY_COLUMNS = [COL_RANK, COL_NAME, COL_CODE, COL_PRICE, COL_CHANGE, COL_MA, COL_STATUS, COL_DEVIATION, COL_CHANGE_DATE]
 
 
+def fmt_yield(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return "--"
+    return f"{value:.2f}%"
+
+
 # ----------------------------- HTML 渲染 ----------------------------- #
 
 def _html_table(columns: List[Column], records: List[Dict[str, Any]]) -> str:
@@ -121,10 +127,62 @@ def _html_table(columns: List[Column], records: List[Dict[str, Any]]) -> str:
     )
 
 
+def _bond_table_html(bonds: Dict[str, Any]) -> str:
+    cn_flag = f'<span class="flag">{FLAG_SVGS["cn"]}</span>'
+    us_flag = f'<span class="flag">{FLAG_SVGS["us"]}</span>'
+    rows = []
+    for row in bonds["rows"]:
+        rows.append(
+            f"<tr><td><b>{row['term']}</b></td>"
+            f'<td>{fmt_yield(row.get("cn"))}</td>'
+            f'<td>{fmt_yield(row.get("us"))}</td></tr>'
+        )
+    return (
+        '<table class="review-table bond-table">'
+        f"<thead><tr><th>期限</th><th>{cn_flag} 中国</th><th>{us_flag} 美国</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+
+
+def _usd_card_html(usd: Dict[str, Any]) -> str:
+    change = usd.get("change")
+    if isinstance(change, (int, float)):
+        cls = change_class(change)
+        change_html = f'<span class="usd-change {cls}">{fmt_change_text(change)}</span>'
+    else:
+        change_html = ""
+    return (
+        '<div class="usd-card">'
+        f'<span class="usd-value">{fmt_price(usd.get("price"))}</span>'
+        f'{change_html}'
+        '<span class="usd-cap">较前一交易日</span>'
+        "</div>"
+    )
+
+
+def _macro_html(usd: Optional[Dict[str, Any]], bonds: Optional[Dict[str, Any]]) -> str:
+    if not usd and not bonds:
+        return ""
+    blocks = []
+    if bonds:
+        blocks.append(
+            '<div class="macro-block macro-bonds"><h3>🏛️ 中美国债收益率</h3>'
+            f'<div class="table-scroll">{_bond_table_html(bonds)}</div></div>'
+        )
+    if usd:
+        blocks.append(
+            '<div class="macro-block macro-usd"><h3>💵 美元指数（DXY）</h3>'
+            f'{_usd_card_html(usd)}</div>'
+        )
+    return f'<div class="card"><h2>🏦 国债收益率和美元指数</h2><div class="macro-grid">{"".join(blocks)}</div></div>'
+
+
 def render_html(stocks: List[Dict[str, Any]], commodities: List[Dict[str, Any]],
-                data_date: str, generated_at: str, title_suffix: str = "") -> str:
+                data_date: str, generated_at: str, title_suffix: str = "",
+                usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None) -> str:
     stock_table = _html_table(STOCK_COLUMNS, stocks)
     commodity_table = _html_table(COMMODITY_COLUMNS, commodities)
+    macro_section = _macro_html(usd, bonds)
     title = f"🌍 全球行情复盘汇总{title_suffix}"
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -167,6 +225,22 @@ code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13
 .neutral {{ color: #757575; }}
 .change-badge {{ display: inline-block; margin-left: 8px; padding: 2px 8px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: #fff; font-size: 12px; border-radius: 10px; font-weight: 700; }}
 .empty {{ text-align: center; color: #999; padding: 24px; }}
+.macro-grid {{ display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; }}
+.macro-block {{ display: flex; flex-direction: column; }}
+.macro-bonds {{ flex: 1 1 340px; }}
+.macro-usd {{ flex: 1 1 240px; }}
+.macro-block h3 {{ font-size: 15px; color: #5a4ea2; margin-bottom: 10px; }}
+.bond-table {{ width: 100%; }}
+.bond-table td, .bond-table th {{ white-space: nowrap; }}
+.bond-table tbody td:not(:first-child) {{ font-variant-numeric: tabular-nums; font-weight: 600; }}
+.usd-card {{ flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; background: #fff; border: 1px solid #ebe8f6; border-radius: 12px; padding: 24px; box-shadow: 0 4px 14px rgba(102,126,234,0.08); }}
+.usd-value {{ font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: 0.5px; color: #4a3f86; font-variant-numeric: tabular-nums; }}
+.usd-change {{ font-size: 15px; font-weight: 700; padding: 4px 14px; border-radius: 20px; }}
+.usd-change.positive {{ color: #2e7d32; background: #e8f5e9; }}
+.usd-change.negative {{ color: #c62828; background: #ffebee; }}
+.usd-change.positive::before {{ content: "▲ "; }}
+.usd-change.negative::before {{ content: "▼ "; }}
+.usd-cap {{ font-size: 12px; color: #9a96b0; }}
 .footer {{ margin-top: 22px; text-align: center; color: #999; font-size: 12px; }}
 </style>
 </head>
@@ -184,7 +258,8 @@ code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13
     <h2>🏅 大宗商品</h2>
     <div class="table-scroll">{commodity_table}</div>
   </div>
-  <div class="footer">数据来源：鱼盆模型量化分析系统 · 本汇总仅供参考，不构成投资建议</div>
+  {macro_section}
+  <div class="footer">数据来源：鱼盆模型量化分析系统 / akshare / 东方财富 · 本汇总仅供参考，不构成投资建议</div>
 </div>
 </body>
 </html>"""
@@ -203,8 +278,26 @@ def _md_table(columns: List[Column], records: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _macro_md(usd: Optional[Dict[str, Any]], bonds: Optional[Dict[str, Any]]) -> str:
+    if not usd and not bonds:
+        return ""
+    parts = ["## 🏦 国债收益率和美元指数\n"]
+    if bonds:
+        parts.append("**🏛️ 中美国债收益率**\n")
+        lines = ["| 期限 | 🇨🇳 中国 | 🇺🇸 美国 |", "| --- | --- | --- |"]
+        for row in bonds["rows"]:
+            lines.append(f"| {row['term']} | {fmt_yield(row.get('cn'))} | {fmt_yield(row.get('us'))} |")
+        parts.append("\n".join(lines) + "\n")
+    if usd:
+        change = usd.get("change")
+        chg = fmt_change_text(change) if isinstance(change, (int, float)) else "--"
+        parts.append(f"**💵 美元指数（DXY）**：{fmt_price(usd.get('price'))}（{chg}，较前一交易日）\n")
+    return "\n".join(parts) + "\n"
+
+
 def render_markdown(stocks: List[Dict[str, Any]], commodities: List[Dict[str, Any]],
-                    data_date: str, generated_at: str, title_suffix: str = "") -> str:
+                    data_date: str, generated_at: str, title_suffix: str = "",
+                    usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None) -> str:
     return (
         f"# 🌍 全球行情复盘汇总{title_suffix}\n\n"
         f"> 数据日期：{data_date} · 生成时间：{generated_at} · 排序：按偏离度由强到弱\n\n"
@@ -212,6 +305,7 @@ def render_markdown(stocks: List[Dict[str, Any]], commodities: List[Dict[str, An
         f"{_md_table(STOCK_COLUMNS, stocks)}\n\n"
         "## 🏅 大宗商品\n\n"
         f"{_md_table(COMMODITY_COLUMNS, commodities)}\n\n"
+        f"{_macro_md(usd, bonds)}"
         "---\n\n"
-        "数据来源：鱼盆模型量化分析系统 · 本汇总仅供参考，不构成投资建议\n"
+        "数据来源：鱼盆模型量化分析系统 / akshare / 东方财富 · 本汇总仅供参考，不构成投资建议\n"
     )

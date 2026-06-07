@@ -11,6 +11,10 @@
   列：`排名 | 市场 | 名称 | 代码 | 现价 | 涨跌幅 | 临界值(MA20) | 状态 | 偏离度 | 状态转变时间`
 - **🏅 大宗商品**（单独一张表，按偏离度排序）：黄金 / 白银 / 铜 / WTI原油 / 布伦特原油
   列同上（无「市场」列）
+- **🏦 国债收益率和美元指数**（宏观面板，只取数据日期当日快照，左右并排）：
+  - 中美国债收益率（左）：2/5/10/30 年中国 / 美国收益率
+  - 美元指数（DXY，右）：现价 + 涨跌幅（居中 KPI 卡片，与左侧表格同为白底风格）
+  - 汇率/利率不套鱼盆信号，故不显示 MA20/状态/偏离度等
 
 发生状态转变的标的会高亮为橙色圆角框并标记「⚡今日转变」。
 **不含**数据源/PE百分位、操作建议、风险提示，也不含 A股窄基与个股。
@@ -28,6 +32,9 @@ STOCK_DISPLAY = {
     ...
 }
 COMMODITY_DISPLAY = { "COMEX铜": {"完整版": True, "精简版": True}, ... }
+
+# 宏观面板（汇率与利率）：是否显示，两个版本一致
+MACRO_DISPLAY = { "美元指数": True, "中美国债": True }
 ```
 
 - `True` 显示 / `False` 隐藏，两个版本各自独立控制。
@@ -63,9 +70,13 @@ yupen/.venv/bin/python3 stock/review/main.py
 |------|------|
 | 状态 / 偏离度 / MA20 / 涨跌幅 / 状态转变时间 | yupen 鱼盆模型内存计算结果 |
 | 市场分类（market） | yupen 采集层 raw_data |
+| 美元指数（DXY）日线 | 新浪 `NewForexService`（DINIW）为主，东财（secid 100.UDI）回退 |
+| 中美国债收益率 | akshare `bond_zh_us_rate` |
 
-> yupen 的 `latest_report.json` 不含 `market` 与状态转变时间，故本模块直接以库方式调用
-> yupen pipeline 取内存完整数据，而非读取其 JSON。
+> - yupen 的 `latest_report.json` 不含 `market` 与状态转变时间，故本模块直接以库方式调用
+>   yupen pipeline 取内存完整数据，而非读取其 JSON。
+> - 国债/汇率**不进 yupen**：国债是收益率（利率）非价格，套鱼盆 MA20 信号语义相反；
+>   美元指数走的是外汇源，与 yupen 指数源不是一套。故这两类在本模块单独取数。
 
 ## 项目结构
 
@@ -74,6 +85,7 @@ stock/review/
 ├── main.py          # 入口：采集 → 过滤(完整/精简) → 排序 → 渲染 → 落盘
 ├── watchlist.py     # ★ 自定义配置：每个标的「完整版/精简版」两个 True/False 开关
 ├── yupen_source.py  # 调用 yupen pipeline，归一化成扁平行情记录
+├── macro.py         # 宏观面板取数：美元指数（新浪/东财）+ 中美国债（akshare）
 ├── summary.py       # 分组（股市/大宗）、过滤、排序、排名
 ├── render.py        # HTML / Markdown 渲染（含国旗 SVG）
 ├── run.sh           # 一键运行 · Linux/macOS（复用 yupen venv）

@@ -15,6 +15,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
+import macro  # noqa: E402
 import render  # noqa: E402
 import summary  # noqa: E402
 import watchlist  # noqa: E402
@@ -57,6 +58,10 @@ def main() -> int:
     simple_commodities = summary.rank(
         summary.filter_for_version(commodities_all, watchlist.COMMODITY_DISPLAY, "精简版", default=False))
 
+    # 宏观面板：汇率与利率（不进 yupen，直接取数；两个版本一致）
+    usd = macro.fetch_usd_index() if watchlist.MACRO_DISPLAY.get("美元指数", True) else None
+    bonds = macro.fetch_bond_yields() if watchlist.MACRO_DISPLAY.get("中美国债", True) else None
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -65,8 +70,8 @@ def main() -> int:
         ("（精简版）", simple_stocks, simple_commodities, "latest_review_simple", f"review_simple_{stamp}"),
     ]
     for suffix, vstocks, vcommodities, latest_name, stamped_name in variants:
-        html = render.render_html(vstocks, vcommodities, data_date, generated_at, suffix)
-        markdown = render.render_markdown(vstocks, vcommodities, data_date, generated_at, suffix)
+        html = render.render_html(vstocks, vcommodities, data_date, generated_at, suffix, usd, bonds)
+        markdown = render.render_markdown(vstocks, vcommodities, data_date, generated_at, suffix, usd, bonds)
         for filename, content in (
             (f"{latest_name}.html", html),
             (f"{latest_name}.md", markdown),
@@ -84,6 +89,14 @@ def main() -> int:
         flag = " ⚡" if record.get("changed_today") else ""
         print(f"  {record['rank']:>2}. {record['region']:<3} {record['name']:<12} "
               f"{record['status']:<3} {record['deviation_str']:>8}{flag}")
+
+    if usd:
+        chg = f"{usd['change'] * 100:+.2f}%" if usd.get("change") is not None else "--"
+        print(f"\n💵 美元指数：{usd['price']:.2f}（{chg}）")
+    if bonds:
+        ten = next((r for r in bonds["rows"] if r["term"] == "10年"), None)
+        if ten and isinstance(ten.get("cn"), (int, float)) and isinstance(ten.get("us"), (int, float)):
+            print(f"🏛️ 10年期国债：中国 {ten['cn']:.2f}% / 美国 {ten['us']:.2f}%")
 
     print("\n📁 报告已保存：")
     print(f"   完整版 HTML: {os.path.join(OUTPUT_DIR, 'latest_review.html')}")

@@ -43,3 +43,9 @@ COMMODITY_DISPLAY = {
     "WTI原油":         {"完整版": True,  "精简版": False},
     "布伦特原油":        {"完整版": True,  "精简版": True},
 }
+
+# ── 宏观面板 · 汇率与利率：是否显示（两个版本一致）──────────────
+MACRO_DISPLAY = {
+    "美元指数": True,
+    "中美国债": True,
+}
