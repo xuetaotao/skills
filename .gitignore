@@ -6,4 +6,5 @@
 .claude/
 .gemini/
 .venv/
+.temp/
 temp/
