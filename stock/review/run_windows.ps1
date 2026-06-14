@@ -1,4 +1,4 @@
-# 行情复盘汇总一键运行脚本（Windows / PowerShell）
+﻿# 行情复盘汇总一键运行脚本（Windows / PowerShell）
 # 复用 yupen 的虚拟环境（内含 akshare / pandas 等依赖）
 $ErrorActionPreference = "Stop"
 
