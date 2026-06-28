@@ -39,6 +39,7 @@ AI 侧默认应做的事情是：
 - 先读取 `stock/review/review_preferences.md`
 - 先按当前操作系统刷新行情汇总：Windows 用 `stock/review/run_windows.ps1`，Linux / macOS 用 `stock/review/run.sh`
 - 刷新完成后，优先使用 `stock/review/outputs/latest_review_simple.md` 作为本周鱼盆数据
+- 如果 `stock/review/outputs/` 中有上周、上上周的 `review_simple_*.md` 或 `weekly_review_*.md`，应结合近期行情走势，综合比较纳指、日韩台、A股、港股、大宗商品、美元指数、美债和中国国债，在开头核心信号下方提炼 1 条真正有增量的观察结论；重点是主动归因“行情靠什么驱动、哪里可能失效、后续用什么确认”，如果只是重复强弱状态则不要写
 - 按当前市场主线生成周报正文
 
 ### 3. 什么时候看模板文件
@@ -103,11 +104,12 @@ yupen/.venv/bin/python3 stock/review/main.py
 
 - 生成“鱼盆模型周度复盘”正文前，应先读取 `stock/review/review_preferences.md`，以该文件作为写作偏好与新闻筛选偏好的优先依据。
 - 默认流程是：先按当前操作系统运行行情汇总脚本刷新数据，再读取最新 `latest_review_simple.md`，产出 10 条新闻候选评分表，最后由用户选择 3-5 条写入正文。
+- 如果已有历史输出，应读取最近 2-3 期 `review_simple_*.md` / `weekly_review_*.md` 做对比，不只描述当期状态；优先寻找美元趋势、纳指动能、AI 交易集中度、商品是否配合、港股科技是否确认、中美国债利差是否支持风险扩散等有用信号。只有能形成增量观察时才写在开头核心信号下方。
 - AI 应根据运行环境选择刷新命令：Windows PowerShell 使用 `powershell -ExecutionPolicy Bypass -File stock/review/run_windows.ps1`；Linux / macOS 使用 `bash stock/review/run.sh`。
 - 如果刷新脚本运行失败，AI 应明确说明失败原因，不要静默改用旧的 `latest_review_simple.md` 当作最新行情。
 - 新闻候选评分表里的每条新闻应附原文链接，方便用户直接查看原文再做筛选。
 - 新闻候选评分表结尾应显式给出“AI 当前已选入复盘周报”的序号，方便用户快速知道 AI 当前实际准备采用哪几条。
-- 如果用户已经明确授权“可由 AI 先按偏好自选新闻，若不满意再指出调整”，则可跳过候选表，直接按当期市场主线与 `review_preferences.md` 选择 3-5 条新闻生成正文。
+- 如果用户已经明确授权“可由 AI 先按偏好自选新闻，若不满意再指出调整”，则可跳过等待用户评审，直接按当期市场主线与 `review_preferences.md` 选择 3-5 条新闻生成正文；但仍要同步输出本期 `news_candidates_YYYYMMDD.md`，保留候选新闻、评分、原文链接和已选入正文的序号。
 - 周度复盘正文不要把 `latest_review*.md` 里的涨跌幅写成“本周上涨/下跌”；它只是数据日期当日涨跌。
 
 ## 输出文件
