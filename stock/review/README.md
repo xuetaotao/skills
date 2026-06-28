@@ -37,8 +37,8 @@ powershell -ExecutionPolicy Bypass -File stock/review/run_windows.ps1
 AI 侧默认应做的事情是：
 
 - 先读取 `stock/review/review_preferences.md`
-- 优先使用 `stock/review/outputs/latest_review_simple.md` 作为本周鱼盆数据
-- 不主动刷新行情；只有在你明确要求刷新、`latest_review_simple.md` 不存在，或数据日期明显过期时，才先运行行情汇总
+- 先按当前操作系统刷新行情汇总：Windows 用 `stock/review/run_windows.ps1`，Linux / macOS 用 `stock/review/run.sh`
+- 刷新完成后，优先使用 `stock/review/outputs/latest_review_simple.md` 作为本周鱼盆数据
 - 按当前市场主线生成周报正文
 
 ### 3. 什么时候看模板文件
@@ -102,7 +102,9 @@ yupen/.venv/bin/python3 stock/review/main.py
 ## 周度复盘补充说明
 
 - 生成“鱼盆模型周度复盘”正文前，应先读取 `stock/review/review_preferences.md`，以该文件作为写作偏好与新闻筛选偏好的优先依据。
-- 默认流程是：复用最新 `latest_review_simple.md`，再产出 10 条新闻候选评分表，最后由用户选择 3-5 条写入正文；除非用户明确要求刷新、最新输出不存在或数据明显过期，否则不要先跑行情汇总。
+- 默认流程是：先按当前操作系统运行行情汇总脚本刷新数据，再读取最新 `latest_review_simple.md`，产出 10 条新闻候选评分表，最后由用户选择 3-5 条写入正文。
+- AI 应根据运行环境选择刷新命令：Windows PowerShell 使用 `powershell -ExecutionPolicy Bypass -File stock/review/run_windows.ps1`；Linux / macOS 使用 `bash stock/review/run.sh`。
+- 如果刷新脚本运行失败，AI 应明确说明失败原因，不要静默改用旧的 `latest_review_simple.md` 当作最新行情。
 - 新闻候选评分表里的每条新闻应附原文链接，方便用户直接查看原文再做筛选。
 - 新闻候选评分表结尾应显式给出“AI 当前已选入复盘周报”的序号，方便用户快速知道 AI 当前实际准备采用哪几条。
 - 如果用户已经明确授权“可由 AI 先按偏好自选新闻，若不满意再指出调整”，则可跳过候选表，直接按当期市场主线与 `review_preferences.md` 选择 3-5 条新闻生成正文。
