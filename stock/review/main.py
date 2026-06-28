@@ -102,6 +102,10 @@ def main() -> int:
     print(f"   完整版 HTML: {os.path.join(OUTPUT_DIR, 'latest_review.html')}")
     print(f"   精简版 HTML: {os.path.join(OUTPUT_DIR, 'latest_review_simple.html')}")
     print(f"   （另有同名 .md 及带时间戳的历史文件）")
+    print("\n📝 下一步说明：")
+    print("   本命令只生成‘行情复盘汇总’数据文件，不会自动生成‘鱼盆模型周度复盘’正文。")
+    print(f"   如果要继续写周度复盘，优先读取：{os.path.join(_HERE, 'review_preferences.md')}")
+    print(f"   正文行情输入优先使用：{os.path.join(OUTPUT_DIR, 'latest_review_simple.md')}")
     print("=" * 56)
     return 0
 

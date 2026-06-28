@@ -5,6 +5,49 @@
 
 这是行情复盘的第一块：只做**行情汇总**。后续的「重要消息解读」「汇率/国债宏观面板」会在本目录继续扩展。
 
+## 操作说明
+
+### 1. 我自己手动刷新行情汇总
+
+这是最常用的入口，只会刷新鱼盆信号和行情汇总数据：
+
+```bash
+# Linux / macOS
+bash stock/review/run.sh
+
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File stock/review/run_windows.ps1
+```
+
+运行完成后，重点看：
+
+- `stock/review/outputs/latest_review.html` / `latest_review.md`：完整版行情汇总
+- `stock/review/outputs/latest_review_simple.html` / `latest_review_simple.md`：精简版行情汇总
+
+注意：这一步**不会自动生成**“鱼盆模型周度复盘”正文，只会刷新行情数据。
+
+### 2. 交给 AI 生成周度复盘正文
+
+你通常不需要自己按步骤描述“先读什么、再用什么”。直接说下面这种话就够了：
+
+- `帮我生成一下鱼盆模型周度复盘`
+- `基于最新 review 输出，生成本周鱼盆模型周度复盘`
+- `按 review_preferences 的偏好，写一下这周的鱼盆模型周报`
+
+AI 侧默认应做的事情是：
+
+- 先读取 `stock/review/review_preferences.md`
+- 优先使用 `stock/review/outputs/latest_review_simple.md` 作为本周鱼盆数据
+- 不主动刷新行情；只有在你明确要求刷新、`latest_review_simple.md` 不存在，或数据日期明显过期时，才先运行行情汇总
+- 按当前市场主线生成周报正文
+
+### 3. 什么时候看模板文件
+
+模板和偏好文件主要用于**调整写法**，不是你每次日常运行都要看：
+
+- `stock/review/review_preferences.md`：记录周报写作偏好和新闻筛选偏好
+- `stock/review/鱼盆模型周度复盘模版.md`：周报模板，适合改结构或改提示词时查看
+
 ## 输出内容
 
 - **📊 全球股市**（一张表，按偏离度排序）：A股宽基 / 美股 / 日经 / 韩国 / 台湾 / 印度 / 英国 / 德国 / 港股
@@ -55,6 +98,15 @@ yupen/.venv/bin/python3 stock/review/main.py
 ```
 
 运行时会实时调用 yupen pipeline 采集并分析最新数据，因此每次都是当前行情。
+
+## 周度复盘补充说明
+
+- 生成“鱼盆模型周度复盘”正文前，应先读取 `stock/review/review_preferences.md`，以该文件作为写作偏好与新闻筛选偏好的优先依据。
+- 默认流程是：复用最新 `latest_review_simple.md`，再产出 10 条新闻候选评分表，最后由用户选择 3-5 条写入正文；除非用户明确要求刷新、最新输出不存在或数据明显过期，否则不要先跑行情汇总。
+- 新闻候选评分表里的每条新闻应附原文链接，方便用户直接查看原文再做筛选。
+- 新闻候选评分表结尾应显式给出“AI 当前已选入复盘周报”的序号，方便用户快速知道 AI 当前实际准备采用哪几条。
+- 如果用户已经明确授权“可由 AI 先按偏好自选新闻，若不满意再指出调整”，则可跳过候选表，直接按当期市场主线与 `review_preferences.md` 选择 3-5 条新闻生成正文。
+- 周度复盘正文不要把 `latest_review*.md` 里的涨跌幅写成“本周上涨/下跌”；它只是数据日期当日涨跌。
 
 ## 输出文件
 
