@@ -1,0 +1,128 @@
+/* pages/index/index.wxss */
+
+/* 本地模式说明 */
+.info-banner {
+  background: #eef4ff;
+  border: 1rpx solid #c9ddff;
+  color: #3a6ea5;
+  border-radius: 16rpx;
+  padding: 22rpx 28rpx;
+  font-size: 25rpx;
+  line-height: 1.5;
+  margin-bottom: 24rpx;
+}
+
+/* 统计概览 */
+.stats {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.stat {
+  flex: 1;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx 0;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.stat .num {
+  font-size: 44rpx;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+.stat .lbl {
+  font-size: 24rpx;
+  color: #9aa0a6;
+  margin-top: 6rpx;
+}
+.stat.ok .num { color: #07c160; }
+.stat.warn .num { color: #fa5151; }
+
+/* 临近截止提醒 */
+.alerts {
+  background: #fff7e6;
+  border: 1rpx solid #ffd591;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+.alert-title {
+  font-size: 26rpx;
+  color: #d48806;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+.alert-item {
+  padding: 14rpx 0;
+  border-top: 1rpx dashed #ffd591;
+}
+.alert-item:first-of-type { border-top: none; }
+.alert-bank { font-size: 28rpx; color: #1f1f1f; font-weight: 500; }
+.alert-text { font-size: 24rpx; color: #ad6800; margin-top: 4rpx; }
+
+/* 空状态 */
+.empty {
+  text-align: center;
+  color: #9aa0a6;
+  padding: 120rpx 0;
+  font-size: 26rpx;
+}
+.empty-emoji { font-size: 80rpx; margin-bottom: 16rpx; }
+
+/* 卡片列表项 */
+.card-item {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.ci-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ci-bank { font-size: 30rpx; font-weight: 600; }
+.ci-status {
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+}
+.status-met { background: #e6f9ee; color: #07c160; }
+.status-unmet { background: #ffeceb; color: #fa5151; }
+.status-unknown { background: #f2f3f5; color: #9aa0a6; }
+.ci-sub { margin-top: 8rpx; }
+.ci-bar {
+  height: 12rpx;
+  background: #f0f1f2;
+  border-radius: 8rpx;
+  margin: 18rpx 0 12rpx;
+  overflow: hidden;
+}
+.ci-bar-fill {
+  height: 100%;
+  background: #07c160;
+  border-radius: 8rpx;
+  transition: width .3s;
+}
+.ci-foot {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 浮动新增按钮 */
+.fab {
+  position: fixed;
+  right: 40rpx;
+  bottom: 60rpx;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #07c160;
+  color: #fff;
+  font-size: 56rpx;
+  line-height: 96rpx;
+  text-align: center;
+  box-shadow: 0 6rpx 20rpx rgba(7, 193, 96, 0.4);
+}

@@ -1,0 +1,44 @@
+/* pages/add/add.wxss */
+.form {
+  padding-top: 16rpx;
+}
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 14rpx;
+  padding: 26rpx 28rpx;
+  margin-bottom: 16rpx;
+}
+.field.col {
+  display: block;
+  padding: 26rpx 28rpx;
+}
+.label {
+  font-size: 28rpx;
+  color: #1f1f1f;
+  flex-shrink: 0;
+  margin-right: 20rpx;
+}
+.picker {
+  font-size: 28rpx;
+  color: #07c160;
+  text-align: right;
+}
+.input {
+  flex: 1;
+  text-align: right;
+  font-size: 28rpx;
+  color: #1f1f1f;
+}
+.textarea {
+  width: 100%;
+  height: 140rpx;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  color: #1f1f1f;
+}
+.save-btn {
+  margin-top: 24rpx;
+}

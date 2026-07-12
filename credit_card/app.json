@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/add/add",
+    "pages/detail/detail"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#07c160",
+    "navigationBarTitleText": "卡包记",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f2f3f5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

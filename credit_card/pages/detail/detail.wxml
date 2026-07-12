@@ -1,0 +1,56 @@
+<view class="container" wx:if="{{card}}">
+  <view class="card">
+    <view class="d-head">
+      <view class="d-title">{{card.bank}} · {{card.cardType}}</view>
+      <view class="ci-status status-{{status}}">{{statusText}}</view>
+    </view>
+    <view class="d-sub muted">尾号 {{card.cardLast4 || '----'}}</view>
+
+    <!-- 年费周期 -->
+    <view class="block">
+      <view class="block-title">当前年费周期</view>
+      <view class="row"><text class="k">周期</text><text class="v">{{cycle.cycleStart}} ~ {{cycle.cycleEnd}}</text></view>
+      <view class="row"><text class="k">剩余天数</text>
+        <text class="v {{cycle.daysLeft <= 30 ? 'danger' : ''}}">{{cycle.daysLeft}} 天</text></view>
+    </view>
+
+    <!-- 达标进度 -->
+    <view class="block" wx:if="{{card.waiverType !== 'none' && card.waiverType !== 'manual'}}">
+      <view class="block-title">年费减免进度({{waiverLabel}})</view>
+      <view class="ci-bar">
+        <view class="ci-bar-fill" style="width:{{percent}}%"></view>
+      </view>
+      <view class="row" wx:if="{{card.waiverType === 'count'}}">
+        <text class="k">已达成</text><text class="v">{{card.waiverProgress}} / {{card.waiverTarget}} 笔</text>
+      </view>
+      <view class="row" wx:else>
+        <text class="k">已达成</text><text class="v">¥{{card.waiverProgress}} / ¥{{card.waiverTarget}}</text>
+      </view>
+      <view class="row" wx:if="{{status === 'unmet'}}">
+        <text class="k">还差</text>
+        <text class="v danger" wx:if="{{card.waiverType === 'count'}}">{{diff}} 笔</text>
+        <text class="v danger" wx:else>¥{{diff}}</text>
+      </view>
+    </view>
+    <view class="block" wx:else>
+      <view class="block-title">年费减免</view>
+      <view class="row"><text class="k">类型</text><text class="v">{{waiverLabel}}</text></view>
+      <view class="row"><text class="k">年费</text><text class="v">¥{{card.annualFee}}</text></view>
+    </view>
+
+    <!-- 其他信息 -->
+    <view class="block">
+      <view class="block-title">其他信息</view>
+      <view class="row"><text class="k">额度</text><text class="v">¥{{card.creditLimit}}</text></view>
+      <view class="row"><text class="k">账单日</text><text class="v">{{card.billingDay ? card.billingDay + ' 号' : '—'}}</text></view>
+      <view class="row"><text class="k">还款日</text><text class="v">{{card.repaymentDay ? card.repaymentDay + ' 号' : '—'}}</text></view>
+      <view class="row"><text class="k">年费</text><text class="v">¥{{card.annualFee}}</text></view>
+      <view class="row" wx:if="{{card.remarks}}"><text class="k">备注</text><text class="v">{{card.remarks}}</text></view>
+    </view>
+
+    <view class="actions">
+      <button class="btn-edit" bindtap="goEdit">编辑</button>
+      <button class="btn-del" bindtap="remove">删除</button>
+    </view>
+  </view>
+</view>

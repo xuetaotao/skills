@@ -1,0 +1,69 @@
+<view class="container">
+
+  <!-- 本地模式说明 -->
+  <view class="info-banner">
+    ℹ️ 数据仅存本机。打开本页即可看到临期提醒;关掉 App 不推送(需主动推送再开云开发)。
+  </view>
+
+  <!-- 统计概览 -->
+  <view class="stats">
+    <view class="stat">
+      <view class="num">{{stats.total}}</view>
+      <view class="lbl">卡片</view>
+    </view>
+    <view class="stat ok">
+      <view class="num">{{stats.met}}</view>
+      <view class="lbl">已达标</view>
+    </view>
+    <view class="stat warn">
+      <view class="num">{{stats.unmet}}</view>
+      <view class="lbl">未达标</view>
+    </view>
+  </view>
+
+  <!-- 临近截止提醒 -->
+  <view class="alerts" wx:if="{{alerts.length}}">
+    <view class="alert-title">⏰ 临近年费截止</view>
+    <view class="alert-item" wx:for="{{alerts}}" wx:key="id"
+          bindtap="goDetail" data-id="{{item.id}}">
+      <view class="alert-bank">{{item.bank}} · {{item.cardType}}</view>
+      <view class="alert-text" wx:if="{{item.waiverType === 'count'}}">
+        还剩 {{item.cycle.daysLeft}} 天,还差 {{item.waiverTarget - item.waiverProgress}} 笔达标
+      </view>
+      <view class="alert-text" wx:elif="{{item.waiverType === 'amount'}}">
+        还剩 {{item.cycle.daysLeft}} 天,还差 ¥{{item.waiverTarget - item.waiverProgress}} 达标
+      </view>
+      <view class="alert-text" wx:else>
+        还剩 {{item.cycle.daysLeft}} 天,请确认是否达标
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{cards.length === 0}}" class="empty">
+    <view class="empty-emoji">💳</view>
+    <view>还没有卡片,点右下角 + 添加</view>
+  </view>
+
+  <!-- 卡片列表 -->
+  <view class="card-item" wx:for="{{cards}}" wx:key="id"
+        bindtap="goDetail" data-id="{{item.id}}">
+    <view class="ci-head">
+      <view class="ci-bank">{{item.bank}} · {{item.cardType}}</view>
+      <view class="ci-status status-{{item.status}}">
+        {{item.status === 'met' ? '已达标' : item.status === 'unmet' ? '未达标' : '待确认'}}
+      </view>
+    </view>
+    <view class="ci-sub muted">尾号 {{item.cardLast4 || '----'}}</view>
+    <view class="ci-bar">
+      <view class="ci-bar-fill" style="width:{{item.percent}}%"></view>
+    </view>
+    <view class="ci-foot">
+      <text class="muted">年费周期剩 {{item.cycle ? item.cycle.daysLeft : '--'}} 天</text>
+      <text class="muted" wx:if="{{item.waiverType !== 'none' && item.waiverType !== 'manual'}}">{{item.percent}}%</text>
+    </view>
+  </view>
+
+  <!-- 浮动新增按钮 -->
+  <view class="fab" bindtap="goAdd">+</view>
+</view>

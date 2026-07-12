@@ -1,0 +1,61 @@
+/* pages/detail/detail.wxss */
+.d-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.d-title { font-size: 34rpx; font-weight: 600; }
+.d-sub { margin-top: 8rpx; margin-bottom: 8rpx; }
+
+.block {
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f0f1f2;
+}
+.block-title {
+  font-size: 26rpx;
+  color: #9aa0a6;
+  margin-bottom: 16rpx;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+  font-size: 28rpx;
+}
+.row .k { color: #6b7075; }
+.row .v { color: #1f1f1f; text-align: right; }
+.v.danger { color: #fa5151; font-weight: 600; }
+
+.ci-bar {
+  height: 14rpx;
+  background: #f0f1f2;
+  border-radius: 8rpx;
+  margin: 8rpx 0 16rpx;
+  overflow: hidden;
+}
+.ci-bar-fill {
+  height: 100%;
+  background: #07c160;
+  border-radius: 8rpx;
+}
+
+.actions {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 40rpx;
+}
+.btn-edit {
+  flex: 1;
+  background: #07c160;
+  color: #fff;
+  border-radius: 44rpx;
+}
+.btn-del {
+  flex: 1;
+  background: #fff;
+  color: #fa5151;
+  border: 1rpx solid #fa5151;
+  border-radius: 44rpx;
+}
