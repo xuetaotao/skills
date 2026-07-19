@@ -315,6 +315,42 @@ sec_funnel_rows = "".join(
 sec_follow = "".join(bar(d["title"][:16], coef(d.get("new_follows")), max(coef(d.get("new_follows")) for d in details_valid) or 1, "#dd6b20")
                       for d in sorted(details_valid, key=lambda x:-coef(x.get("new_follows"))) if coef(d.get("new_follows"))>0)
 sec_follow += f'<div class="note">其余 {len(details_valid)-len(attr)} 篇带来 0 关注。{n_det} 篇窗口内（仅含已抓取详情页的文章）合计 <b>{attr_total}</b> 个关注；账号累计粉丝 {FANS if FANS is not None else "—"}（后台快照截至 {SNAP_DATE}）。注意：此处吸粉数仅来自已抓取详情页的文章，并非窗口内全部关注。</div>'
+
+# ---------- 互动深度分析（互动率/粉丝活跃度/分享传播力）----------
+# 互动率 = (分享+留言+收藏)/阅读；粉丝活跃度 = 消息阅读/送达；分享传播力 = 分享产生阅读/总分享
+engagement_rows = []
+eng_data = []
+for d in sorted(details_valid, key=lambda x: -coef(x.get("reads"))):
+    r = coef(d.get("reads"))
+    if not r: continue
+    sh = coef(d.get("shares")); cm = coef(d.get("comments")); co = coef(d.get("collections"))
+    mo = coef(d.get("moments")); fw = coef(d.get("forwards"))
+    eng = sh + cm + co
+    eng_rate = round(eng/r*100, 1)
+    reach = coef(d.get("reach")); mr = coef(d.get("msg_reads"))
+    fan_active = round(mr/reach*100, 1) if reach else 0
+    tsn = coef(d.get("total_share_n")); sir = coef(d.get("share_induced_reads"))
+    share_spread = round(sir/tsn*100, 1) if tsn else 0
+    nf = coef(d.get("new_follows"))
+    eng_data.append({"title": d["title"][:18], "reads": r, "eng": eng, "eng_rate": eng_rate,
+                     "fan_active": fan_active, "share_spread": share_spread, "nf": nf})
+    engagement_rows.append(
+        f'<tr><td class="t">{d["title"][:16]}</td><td>{r}</td><td>{sh}</td><td>{mo}</td><td>{fw}</td>'
+        f'<td>{cm}</td><td>{co}</td><td class="{"hot" if eng_rate>=5 else ""}">{eng_rate}%</td>'
+        f'<td>{fan_active}%</td><td>{share_spread}%</td>'
+        f'<td class="{"hot" if nf>0 else ""}">{nf}</td></tr>'
+    )
+sec_engagement = "".join(engagement_rows)
+# 互动率最高的文章（互动率 ≥ 5% 算高互动）
+high_eng = [e for e in eng_data if e["eng_rate"] >= 5]
+# 高阅读但低互动的"虚胖"文章
+low_eng_high_read = [e for e in eng_data if e["reads"] >= 100 and e["eng_rate"] < 2]
+_eng_insight = ""
+if high_eng:
+    _eng_insight += '<b>高互动文章（≥5%）</b>：' + "、".join(f'《{e["title"]}》{e["eng_rate"]}%' for e in high_eng[:3]) + '——这些文章虽未必阅读最高，但读者参与度强，会累积推荐权重。'
+if low_eng_high_read:
+    _eng_insight += ' <b>高阅读低互动（虚胖）</b>：' + "、".join(f'《{e["title"]}》{e["eng_rate"]}%' for e in low_eng_high_read[:2]) + '——阅读高但读者看完即走，长远推荐权重会下降。'
+
 age_order=["18岁以下","18-25岁","26-35岁","36-45岁","46-60岁","60岁以上","未知"]
 sec_age="".join(hbar(k, age_agg.get(k,0), "#805ad5") for k in age_order if k in age_agg)
 sec_gender="".join(hbar(k, v, "#d53f8a") for k,v in [("男",gender_agg.get("男",0)),("女",gender_agg.get("女",0))] if v>0)
@@ -404,7 +440,19 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
   <b>分享率 = 分享/阅读</b>，是内容被转发扩散的强度指标，也是涨粉的关键前导。</div>
 </div>
 
-<h2>五、阅读→关注漏斗（新）：为什么大阅读≠大涨粉</h2>
+<h2>五、互动深度分析（新）：阅读≠关注，但互动是长远推荐权重</h2>
+<div class="card">
+  <div class="legend">各文章互动数据（按阅读降序，{n_det} 篇有详情）</div>
+  <table>
+    <tr><th>文章</th><th>阅读</th><th>分享</th><th>朋友圈</th><th>转发</th><th>留言</th><th>收藏</th><th>互动率</th><th>粉丝活跃</th><th>分享传播</th><th>关注</th></tr>
+    {sec_engagement}
+  </table>
+  <div class="note">互动率 = (分享+留言+收藏)/阅读；粉丝活跃度 = 消息阅读/送达；分享传播力 = 分享产生阅读/总分享。
+  {_eng_insight}
+  <br><b>结论</b>：高阅读≠高互动（如爆款可能互动率 < 1%），但高互动文章会累积微信推荐权重，长远利好阅读增长和涨粉。<b>写文章不仅要冲阅读，还要设计互动钩子</b>（提问引留言、金句引收藏、实用引转发）。</div>
+</div>
+
+<h2>六、阅读→关注漏斗（新）：为什么大阅读≠大涨粉</h2>
 <div class="card">
   <table>
     <tr><th>文章</th><th>阅读</th><th>完读%</th><th>分享</th><th>分享率%</th><th>新增关注</th><th>关注/千读</th></tr>
@@ -417,7 +465,7 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
   <br>→ 关注 = 阅读 × 完读率 × 分享率 × <b>平台相关度</b>，第四步决定天花板。</div>
 </div>
 
-<h2>六、吸粉归因：谁真正带来了粉丝</h2>
+<h2>七、吸粉归因：谁真正带来了粉丝</h2>
 <div class="card">
   <div class="legend">各文章带来的「新增关注」数量（窗口内 {n_det} 篇）</div>
   {sec_follow}
@@ -425,7 +473,7 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
   原因：微信/公众号相关内容，读者更愿意"关注这个号"；纯公司新闻读者看完即走。</div>
 </div>
 
-<h2>七、涨粉机制：相关性铁证（新）</h2>
+<h2>八、涨粉机制：相关性铁证（新）</h2>
 <div class="card">
   <div class="callout">
   <b>用 {n_det} 篇文章做 Pearson 相关分析（关注为因变量）：</b><br>
@@ -438,14 +486,14 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
   <div class="note">{_lag_note}</div>
 </div>
 
-<h2>八、流量结构：几乎全靠推荐分发</h2>
+<h2>九、流量结构：几乎全靠推荐分发</h2>
 <div class="card">
   <div class="legend">账号级阅读来源（内容分析，阅读总人数 {TOTAL_READERS}）</div>
   {sec_traffic}
   <div class="note">粉丝主动打开仅 {_traffic.get("公众号消息",0):.2f}%。<b>增长几乎完全取决于算法推荐</b>，因此"为推荐优化"（前 3 句抓人、短段落、高完读）是阅读量第一杠杆；"搜一搜"{_traffic.get("搜一搜",0):.2f}% 零成本，值得吃长尾。</div>
 </div>
 
-<h2>九、读者画像：谁在看你（单篇聚合，样本加权）</h2>
+<h2>十、读者画像：谁在看你（单篇聚合，样本加权）</h2>
 <div class="card">
   <div class="legend">性别分布</div>
   {sec_gender}
@@ -458,7 +506,7 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
   <b>里程碑：</b>账号级画像（性别/年龄/城市/终端/活跃时间）在<b>粉丝达 100 后次日自动解锁</b>——这是你下一个明确目标。</div>
 </div>
 
-<h2>十、可执行优化方向（按杠杆排序）</h2>
+<h2>十一、可执行优化方向（按杠杆排序）</h2>
 
 <div class="rec"><div class="p">① 爆款排在周二发（最高杠杆、零成本）</div>
 证据：周二 {tue[1]} 篇占全量 {tue_share}% 阅读（均 {tue[2]}），其余工作日合计阅读 {min_non_tue_nonzero}–{max_non_tue}。把每周 1–2 篇"爆款候选"固定在周二；常规复盘稿排其他日维持节奏。</div>
@@ -501,3 +549,15 @@ print("report ->", out, "bytes=",len(HTML))
 print("tue_share=",tue_share,"brand_avg=",brand_avg,"nonb_avg=",nonb_avg,"lift=",round(brand_avg/nonb_avg))
 print("corr read=",r_read,"comp=",r_comp,"share=",r_share,"prod=",r_prod)
 print("attr_total=",attr_total,"tax top=",tax[0])
+
+# ---- 自动更新爆款预测基准快照 ----
+# 每次报告生成后顺便刷新 hit_baseline.json，供 predict_hit.py 使用
+import subprocess
+try:
+    subprocess.run(
+        [sys.executable, os.path.join(HERE, "update_baseline.py"), BASE],
+        check=True, capture_output=True
+    )
+    print("✓ hit_baseline.json 已更新（爆款预测基准已同步最新数据）")
+except Exception as e:
+    print(f"WARN: update_baseline.py 调用失败: {e}")

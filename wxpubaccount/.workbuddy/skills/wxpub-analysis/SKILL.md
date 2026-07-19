@@ -38,12 +38,13 @@ wxpubaccount/
 │   ├── raw/                  # 原始快照：d2_*.txt 详情页、publish_pN.txt 发表记录、
 │   │                         #   content_analysis.txt / user_analysis.txt 总览、qr/ 二维码
 │   └── processed/            # 清洗后 JSON：article_details.json / article_details2.json /
-│                              #   recent_articles.json / _window.json
+│                              #   recent_articles.json / _window.json / hit_baseline.json(爆款预测基准)
 └── .workbuddy/
     ├── skills/wxpub-analysis/  # 本技能
     │   ├── SKILL.md
     │   └── scripts/            # generate_final2.py / parse_details2.py / analyze_extra.py
     │                         #   build_articles.py / resolve_range.py / extract_pub.js / scrape_publish.sh
+    │                         #   update_baseline.py(爆款基准快照) / predict_hit.py(爆款预测器)
     └── memory/                 # 工作日志
 ```
 > 脚本自动从自身位置向上探测到本工作空间根目录，因此无论在哪调用都能正确找到 `data/` 与 `reports/`。也可显式传 `python <script>.py <WORKSPACE_DIR>` 或用环境变量 `WXPUB_DIR`。
@@ -154,7 +155,33 @@ python .workbuddy/skills/wxpub-analysis/scripts/parse_details2.py
 python .workbuddy/skills/wxpub-analysis/scripts/analyze_extra.py          # 诊断打印
 python .workbuddy/skills/wxpub-analysis/scripts/generate_final2.py        # 产出 reports/公众号数据分析与创作指引_YYYY-MM-DD.html
 ```
-报告含 10 节：发文节奏/星期规律/阅读幂律+标题分级/传播力/阅读→关注漏斗/吸粉归因/涨粉机制+相关性/流量结构/读者画像/可执行优化方向。
+报告含 11 节：发文节奏/星期规律/阅读幂律+标题分级/传播力/**互动深度分析(新)**/阅读→关注漏斗/吸粉归因/涨粉机制+相关性/流量结构/读者画像/可执行优化方向。
+报告生成后会**自动调用 `update_baseline.py`** 刷新 `data/processed/hit_baseline.json`（爆款预测基准快照），无需手动跑。
+
+### 7.5 爆款预测（写文章前判断是否值得写）
+基于历史数据规律，判断"想写的文章"是否能成爆款。基准快照随每次数据复盘自动更新。
+
+```bash
+# 命令行：传标题草稿 + 主题关键词 + 计划发文日
+python .workbuddy/skills/wxpub-analysis/scripts/predict_hit.py \
+  --title "微信这个更新，AI终于扛不住了" \
+  --topics "微信,AI,工具" \
+  --day 周二
+
+# 交互式（不传参数，逐项输入）
+python .workbuddy/skills/wxpub-analysis/scripts/predict_hit.py
+```
+
+输出评分卡（4 维度）：
+- 📈 **阅读爆款潜力**（0-100）：标题公式分(50) + 时机分(30) + 话题热度(20)
+- 💚 **涨粉潜力**（0-100）：平台相关度(40) + 完读分享(30) + 标题时机加权(30)
+- 🔥 **互动潜力**（0-20，新增）：方法论→20(高收藏留言) / 冲突→15(高分享) / 复盘→12 / 普通→8。高互动文章累积推荐权重，长远利好。
+- 📍 **定位匹配**（新增）：✅ 在定位内 / ⚠️ 偏离定位。账号核心定位=科技/商业/金融，偏离时给调整建议。
+- 🎯 综合判断：🌟强烈推荐 / 📈冲阅读但涨粉有限 / 💚阅读不爆但能涨粉 / ⚠️建议调整
+- 📚 历史爆款参考 + 💚 历史涨粉参考（从最近数据找相似案例）
+- 💡 优化建议（加具名主体/换角度/换日期/回归定位等）
+
+**对话式用法**：用户说"我想写一篇关于 X 的文章"时，助手读 `hit_baseline.json` + 跑 `predict_hit.py`，结合评分卡给出对话建议。
 
 ### 8. 清理
 ```bash
@@ -163,9 +190,11 @@ agent-browser close
 更新 `.workbuddy/memory/YYYY-MM-DD.md`。
 
 ## 已验证的核心结论（可直接复用，数字随分析区间浮动，以报告为准）
+- **账号核心定位**：科技 / 商业 / 金融。偶尔极少数写社会现象类（须与定位相关）。predict_hit.py 的定位匹配维度会判断是否偏离。
 - 粉丝 **主要来自文章页**（用户分析后台快照：新增关注渠道饼图仅 1 片=文章页关注，即 100% 来自文章页；报告内标注抓取日并提示定期在后台复核）。
-- 涨阅读：标题「具名主体 + 冲突」杠杆随区间浮动（全量 78 篇约 30–45×，具名均远高于非具名）；**周二**发文占阅读主力（全量区间约 50%+，近 30 天窗口更高，随所选分析区间浮动，报告内动态计算）。
-- 涨粉：**关注 ≠ 阅读量**（r ≈ 0.1–0.2，几乎无关），关注 = 完读率 × 分享率 × 平台相关度（r ≈ 0.4–0.5，最强预测因子）。爆款若与账号主题无关（如纯公司新闻），高阅读也 0 关注；与"微信/工具/理财"相关的高完读高分享文才能转化粉丝。
+- 涨阅读：标题「具名主体 + 冲突」杠杆随区间浮动（全量约 30–45×，具名均远高于非具名）；**周二**发文占阅读主力（全量区间约 50%+，随区间浮动，报告内动态计算）。
+- 涨粉：**关注 ≠ 阅读量**（r ≈ 0.1–0.2，几乎无关），关注 = 完读率 × 分享率 × 平台相关度（r ≈ 0.4–0.5，最强预测因子）。爆款若与账号定位无关（如纯公司新闻），高阅读也 0 关注；与"科技/商业/金融"相关的高完读高分享文才能转化粉丝。
+- **互动深度（新）**：高阅读≠高互动。苹果 1915 读互动率 0.6%（虚胖），抖音 405 读互动率 3.7%（6 倍）。高互动文章（分享+留言+收藏）/阅读 ≥5% 会累积推荐权重，长远利好阅读增长和涨粉。写文章不仅要冲阅读，还要设计互动钩子（提问引留言、金句引收藏、实用引转发）。
 - 流量 **约 90%+** 来自推荐（阅读总人数随抓取日变化，报告内动态解析）→ 为推荐优化开篇是关键。
 - 口径统一：本报告所有"阅读"= 阅读人数（unique）；reads 字段统一取自【发布列表页】（=用户后台实时看到的值），详情页 d2 快照值保留在 reads_d2 字段供回溯。
 

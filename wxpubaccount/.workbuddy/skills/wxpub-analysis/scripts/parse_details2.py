@@ -42,15 +42,35 @@ def parse_file(path):
     m = re.search(r'新增关注"\s*(?:\n\s*- generic\s*\n)?\s*- StaticText "([\d,]+) 人"', t)
     if m: out["new_follows"] = int(m.group(1).replace(",", ""))
     # 分享 / 留言 / 收藏 (互动 block, plain numbers, 大数可能带逗号)
-    m = re.search(r'分享"\s*\n\s*- StaticText "([\d,]+)"', t)
-    if m: out["shares"] = int(m.group(1).replace(",", ""))
+    # 分享区块有 3 个数字：分享总数 / 朋友圈分享 / 转发（按微信后台 UI 顺序）
+    # 抓"分享"到"赞赏"之间的所有 StaticText 数字
+    share_block = re.search(r'分享"\s*(.*?)\n\s*- StaticText "赞赏"', t, re.S)
+    if share_block:
+        share_nums = re.findall(r'StaticText "([\d,]+)"', share_block.group(1))
+        if share_nums:
+            out["shares"] = int(share_nums[0].replace(",", ""))            # 分享总数
+        if len(share_nums) >= 2:
+            out["moments"] = int(share_nums[1].replace(",", ""))           # 朋友圈分享
+        if len(share_nums) >= 3:
+            out["forwards"] = int(share_nums[2].replace(",", ""))          # 转发（好友/群）
     m = re.search(r'留言"\s*\n\s*- StaticText "([\d,]+)"', t)
     if m: out["comments"] = int(m.group(1).replace(",", ""))
     m = re.search(r'收藏"\s*\n\s*- StaticText "([\d,]+)"', t)
     if m: out["collections"] = int(m.group(1).replace(",", ""))
+    # 赞赏金额（元）
+    m = re.search(r'赞赏"\s*\n\s*- StaticText "([\d,]+)"', t)
+    if m: out["appreciation"] = int(m.group(1).replace(",", ""))
     # 听全文 (context metric)
     m = re.search(r'听全文"\s*\n\s*- StaticText "(\d+) 人"', t)
     if m: out["listen_full"] = int(m.group(1))
+    # 传播指标（分享扩散分析区块，image 格式，只取"首次传播"）
+    # 送达人数 / 消息阅读人数 / 首次分享人数 / 总分享人数 / 分享产生的阅读人数
+    for name, key in [("送达人数","reach"), ("消息阅读人数","msg_reads"),
+                      ("首次分享人数","first_share_n"),
+                      ("总分享人数","total_share_n"),
+                      ("分享产生的阅读人数","share_induced_reads")]:
+        m = re.search(r'image "'+re.escape(name)+r',\s*(\d+)\.\s*首次传播', t)
+        if m: out[key] = int(m.group(1))
     # 渠道 (chart images): image "推荐, 91.007." —— 只保留真实流量来源，
     # 排除"送达人数/消息阅读人数/首次分享人数/总分享人数/分享产生的阅读人数"等干扰指标
     TRAFFIC = {"推荐","搜一搜","公众号主页","公众号消息","其它","聊天会话","朋友圈"}
