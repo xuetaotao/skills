@@ -33,19 +33,17 @@ description: 微信公众平台数据抓取 + 阅读/涨粉分析与创作指引
 wxpubaccount/
 ├── README.md                 # 本工作空间说明
 ├── token.txt                 # 最近一次会话 token（会过期，仅供回溯）
-├── reports/                  # 生成的 HTML 报告（带日期 _YYYY-MM-DD 的为最新主报告）
+├── reports/                  # 生成的 HTML 报告（带日期 _YYYY-MM-DD 的为最新主报告，旧版直接删）
 ├── data/
-│   ├── raw/                  # 原始快照：d_*.txt / d2_*.txt 详情页、pN.txt 发表记录、
-│   │                         #   content_analysis*.txt / user_analysis*.txt 总览、qr/ 二维码
-│   ├── processed/            # 清洗后 JSON：article_details*.json / recent_articles.json /
-│   │                         #   merged_articles.json / growth_daily.json
-│   └── _archive/             # 早期废弃脚本与中间产物（保留备查）
+│   ├── raw/                  # 原始快照：d2_*.txt 详情页、publish_pN.txt 发表记录、
+│   │                         #   content_analysis.txt / user_analysis.txt 总览、qr/ 二维码
+│   └── processed/            # 清洗后 JSON：article_details.json / article_details2.json /
+│                              #   recent_articles.json / _window.json
 └── .workbuddy/
     ├── skills/wxpub-analysis/  # 本技能
     │   ├── SKILL.md
     │   └── scripts/            # generate_final2.py / parse_details2.py / analyze_extra.py
-    │                         #   build_articles.py (发表记录→recent_articles+article_details)
-    │                         #   extract_pub.js (发表记录 DOM 提取 eval 片段)
+    │                         #   build_articles.py / resolve_range.py / extract_pub.js / scrape_publish.sh
     └── memory/                 # 工作日志
 ```
 > 脚本自动从自身位置向上探测到本工作空间根目录，因此无论在哪调用都能正确找到 `data/` 与 `reports/`。也可显式传 `python <script>.py <WORKSPACE_DIR>` 或用环境变量 `WXPUB_DIR`。
@@ -55,15 +53,17 @@ wxpubaccount/
 登录(扫码) → 得 token
   ├─ 内容分析页  → 流量来源结构 + 阅读Top + 阅读总人数   → data/raw/content_analysis.txt
   ├─ 用户分析页  → 每日净增 + 新增关注渠道饼图(验证100%文章页) + [粉丝<100则无账号画像]
-                  → data/raw/user_analysis.txt  → data/processed/growth_daily.json
+                  → data/raw/user_analysis.txt
   ├─ 发表记录页  → 全部文章(appmsg_id + send_time + 标题 + 阅读人数)
                   → data/raw/publish_pN.txt
-                  → (scripts/build_articles.py) → data/processed/recent_articles.json(32篇)
-                                                 → data/processed/article_details.json(17篇窗口底表)
-  └─ 每篇详情页(30天窗口) → 阅读/完读率/分享/收藏/留言/单篇新增关注/渠道/年龄/地域/性别
+                  → (scripts/build_articles.py) → data/processed/recent_articles.json(分析窗口内全部)
+                                                 → data/processed/article_details.json(同窗口底表)
+  └─ 每篇详情页(当前分析窗口) → 阅读/完读率/分享/收藏/留言/单篇新增关注/渠道/年龄/地域/性别
                   → data/raw/d2_<APPMSGID>.txt
         ↓ 解析 (.workbuddy/skills/wxpub-analysis/scripts/parse_details2.py)
-        ↓ data/processed/article_details2.json（含派生 share_rate/coll_rate/follow_rate）
+        ↓ 统一 reads 口径：从 recent_articles.json 注入【列表页】reads 到所有文章，
+        ↓   d2 详情页快照值保留在 reads_d2 字段供回溯（MEMORY 铁律 #4）
+        ↓ data/processed/article_details2.json（reads=列表页，reads_d2=详情页快照，详情类字段仅 16 篇有）
         ↓ 多轮交叉分析 (scripts/analyze_extra.py：星期规律/标题分级/阅读→关注漏斗/Pearson相关性)
         ↓ 生成自包含 HTML 报告 (scripts/generate_final2.py → reports/)
 ```
@@ -94,29 +94,52 @@ agent-browser eval 'JSON.stringify([...document.querySelectorAll("a")].filter(a=
 - **内容分析**：`open <内容分析href>` → 快照存 `data/raw/content_analysis.txt`（流量来源饼图在 `image "推荐, 91.14."` 这类；阅读总人数在 `StaticText "阅读总人数：3,489人"`）。
 
 ### 4. 抓发表记录 → 构造数据清单（存到 data/raw/ + data/processed/）
+> **关键**：发表记录页是 SPA，静态快照里没有 `appmsg_id`；且**只有带 `mpunderline` 链接的卡片**才在 DOM 里带 `appmsg_id`/`send_time`，**转载/旧文等卡片链接格式不同，`send_time` 在 DOM 里取不到**。
+> 正确做法：`extract_pub.js` 优先读页面**嵌入的 `publish_page` JSON**（`var publish_page = {total_count, publish_list:[...]}`）拿到每篇真实的 `send_time`（`sent_info.time`）与 `appmsg_id`，再用 DOM 兜底。该嵌入 JSON 是**分页**的（每页 20 条），故需逐页抓取。
+
 ```bash
-# 翻页抓取（每页 count=20，begin=0,20,... 直到无更多）；每页用 eval 提取卡片
-agent-browser open "https://mp.weixin.qq.com/cgi-bin/appmsgpublish?sub=list&begin=0&count=20&token=TOKEN&lang=zh_CN"
-agent-browser wait 3500
-# 用 scripts/extract_pub.js 提取每篇卡片的 标题 + appmsg_id + send_time(Unix) + 7个统计数，存原始
-agent-browser eval "$(cat scripts/extract_pub.js)" > data/raw/publish_p1.txt 2>&1
-# 下一页 begin=20 同理 → publish_p2.txt（账号 5.27 起共 32 篇，需 2 页）
+# ⚠️ BUG 修复点：发表记录是分页接口（count=20, begin=0,20,40...），必须翻到空页才算抓全。
+# 早期版本只抓了前 2 页（假定"共 32 篇"），且 DOM 提取漏掉无 mpunderline 链接卡片的 send_time，
+# 导致"全部"成了假全量、最早日期错成 2026-03-14（真实是 2020-06-14）。
+# 现用 scrape_publish.sh 自动翻页直到空页，产出 publish_p1..pN.txt：
+bash .workbuddy/skills/wxpub-analysis/scripts/scrape_publish.sh <TOKEN>
+#   TOKEN 取自登录后 URL 里的 token= 参数（见步骤 2/3）。
+#   脚本逐页 open+eval(extract_pub.js)，某页卡片数为 0 时停止并删除该空文件。
+#   上限 200 页（4000 篇）封顶防死循环；若命中上限会打印 ⚠️ 警告（绝不静默截断）。
 ```
-> **关键**：发表记录页是 SPA，静态快照里没有 `appmsg_id`；必须读 DOM 容器里 `a[href*='mpunderline']` 链接（含 `appmsg_id` 与 `send_time`），卡片类名为 `.weui-desktop-mass-media.weui-desktop-mass-appmsg`。`extract_pub.js` 已封装好。
+> 抓完后 `data/raw/publish_p*.txt` 即账号**真实全部**发表记录（实测 82 篇，最早 2020-06-14）。后续 `build_articles.py` 合并所有页面。
 ```bash
 # 由 publish_pN.txt 构造两个清单 JSON（脚本自动定位 data/ 目录）：
-python .workbuddy/skills/wxpub-analysis/scripts/build_articles.py
-#   → data/processed/recent_articles.json  (5.27 起全部 32 篇：title/date/reads/appmsg_id)
-#   → data/processed/article_details.json  (30 天窗口 17 篇基础：id/title/publish，供步骤6合并)
+python .workbuddy/skills/wxpub-analysis/scripts/build_articles.py          # 不指定=全部【已抓取】的发表记录
+#   → data/processed/recent_articles.json  (分析窗口内全部文章：title/date/reads/appmsg_id)
+#   → data/processed/article_details.json  (同窗口底表：id/title/publish，供步骤6合并)
+#
+# 指定时间范围（口语也能直接传）：
+python .workbuddy/skills/wxpub-analysis/scripts/build_articles.py --nl "近一个月"
+python .workbuddy/skills/wxpub-analysis/scripts/build_articles.py --nl "2026年至今"
+python .workbuddy/skills/wxpub-analysis/scripts/build_articles.py --all     # 等价于不指定
+python .workbuddy/skills/wxpub-analysis/scripts/build_articles.py --since 2026-05-27 --until 2026-07-01
 ```
 > 这一步是**本技能早期缺失的胶水环节**——`parse_details2.py` 依赖 `article_details.json` 作底表，但原流程没有脚本生成它。现在由 `build_articles.py` 补齐，skill 才算真正可独立重跑。
+> `build_articles.py` 只跳过 `send_time` 为空的卡片（约 4 篇"已删除"文章），`appmsg_id` 为空的（转载/旧文）仍计入聚合分析，仅无逐篇详情快照。
+
+**分析时间范围（同时作用于上面两个文件，单一窗口，可配置）：**
+- **默认 = 全部【已抓取】的发表记录**（不指定参数即走全量，范围 = `data/raw/publish_p*.txt` 里的所有卡片；`scrape_publish.sh` 自动翻页到空页，实测 82 张卡片、78 篇含日期，覆盖 **2020-06-14 ~ 今天**）。
+  ⚠️ 详情类分析（完读率/分享/涨粉/画像）只覆盖 `data/raw/d2_*.txt` 已抓取快照的 17 篇；要扩到全部文章的逐篇详情，需对更早文章再跑"逐篇抓详情页"。报告头部显示的区间 = 已抓取文章的真实发文区间。
+- `--all` / `WXPUB_RANGE=all` → 同默认：已抓取发表记录里的全部卡片。
+- `--nl "短语"` → 中文口语短语，由 `resolve_range.py` 解析。常用且已验证：
+  `近一个月` / `最近7天` / `近3个月` / `2026年至今` / `今年` / `2026年5月` / `本月` / `上周` / `2026-05-27 到 2026-07-01`；无法识别时打印 `WARN` 并回退为"已抓取全部"。
+- `--since/--until` 或 `WXPUB_SINCE/WXPUB_UNTIL`（YYYY-MM-DD）→ 任意显式时段。
+- `--window N` / `WXPUB_WINDOW=N`（默认不生效，显式给定才用）→ 最近 N 天。
+- 下游 `parse_details2.py` / `generate_final2.py` 自动跟随该范围；报告头部显示实际区间，篇数/周均/窗口篇数均动态计算（不再写死 5.27 / 固定篇数）。
+- ⚠️ 逐篇详情只覆盖 `data/raw/d2_*.txt` 已抓取到的文章；选「全部/更早」时若部分文章没抓详情页，`parse_details2` 会打印 `WARN unmatched id`，详情类章节只显示已抓到的部分。需先补抓（步骤5）再解析。
 
 ### 5. 逐篇抓详情页（核心，最贵）→ data/raw/d2_<APPMSGID>.txt
 详情页 URL（msgid 即 appmsg_id）：
 ```
 https://mp.weixin.qq.com/misc/appmsganalysis?action=detailpage&msgid=<APPMSGID>_1&publish_date=<YYYY-MM-DD>&type=int&pageVersion=1&token=TOKEN&lang=zh_CN
 ```
-对 30 天窗口内每篇：`open` → `wait 3500` → `snapshot > data/raw/d2_<APPMSGID>.txt`。
+对分析窗口内每篇：`open` → `wait 3500` → `snapshot > data/raw/d2_<APPMSGID>.txt`。
 **分批 3-4 篇/批**，批间检查文件非空（防 daemon 退化）。
 
 ### 6. 解析（用脚本）
@@ -139,12 +162,18 @@ agent-browser close
 ```
 更新 `.workbuddy/memory/YYYY-MM-DD.md`。
 
-## 已验证的核心结论（可直接复用，2026-07-19 实测）
-- 粉丝 **100% 来自文章页**（用户分析：30 天新增 10 人、累计 32，饼图仅 1 片=文章页关注）。
-- 涨阅读：标题「具名主体 + 冲突」杠杆 ≈ **43×**（具名均 469 vs 非具名均 11）；**周二**发文占 **60%** 阅读。
-- 涨粉：**关注 ≠ 阅读量**（r=**0.17**），关注 = 完读率 × 分享率 × 平台相关度（r=**0.45**）。《苹果》1925 读=0 关注，《微信AI》556 读=4 关注（占文章页关注 40%），《抖音》289 读高互动=0 关注（话题无关）。
-- 流量 **91.14%** 来自推荐（阅读总人数 3,489）→ 为推荐优化开篇是关键。
-- 口径统一：本报告所有"阅读"= 阅读人数（unique）；recent_articles 与 detail 页同源，避免混用阅读次数/人数。
+## 已验证的核心结论（可直接复用，数字随分析区间浮动，以报告为准）
+- 粉丝 **主要来自文章页**（用户分析后台快照：新增关注渠道饼图仅 1 片=文章页关注，即 100% 来自文章页；报告内标注抓取日并提示定期在后台复核）。
+- 涨阅读：标题「具名主体 + 冲突」杠杆随区间浮动（全量 78 篇约 30–45×，具名均远高于非具名）；**周二**发文占阅读主力（全量区间约 50%+，近 30 天窗口更高，随所选分析区间浮动，报告内动态计算）。
+- 涨粉：**关注 ≠ 阅读量**（r ≈ 0.1–0.2，几乎无关），关注 = 完读率 × 分享率 × 平台相关度（r ≈ 0.4–0.5，最强预测因子）。爆款若与账号主题无关（如纯公司新闻），高阅读也 0 关注；与"微信/工具/理财"相关的高完读高分享文才能转化粉丝。
+- 流量 **约 90%+** 来自推荐（阅读总人数随抓取日变化，报告内动态解析）→ 为推荐优化开篇是关键。
+- 口径统一：本报告所有"阅读"= 阅读人数（unique）；reads 字段统一取自【发布列表页】（=用户后台实时看到的值），详情页 d2 快照值保留在 reads_d2 字段供回溯。
 
 ## 复用方式
-用户说"定期跑一下分析"时：直接按上面步骤重跑（重新扫码登录，token 会变，URL 现取）。新文章自动进入 30 天窗口，报告自动更新。整个工作空间目录可整体拷贝/同步到任意电脑，无需 C 盘用户目录。
+用户下达分析指令时，先确定时间范围再跑：
+- "分析一下公众号数据" / "复盘数据" / 没提时段 → **默认=全部已抓取的发表记录**：`build_articles.py`（不带参数）。
+- "帮我分析近一个月的公众号文章数据" → `build_articles.py --nl "近一个月"`。
+- "帮我分析2026年至今的公众号数据" → `build_articles.py --nl "2026年至今"`。
+- "看看 5 月到 7 月的数据" → `build_articles.py --nl "2026-05-01 到 2026-07-31"` 或 `--since/--until`。
+
+识别到口语时段后，在 `build_articles.py` 阶段用 `--nl "短语"`（无法识别则回退为已抓取全部），下游 `parse_details2.py` / `generate_final2.py` 自动跟随。重新扫码登录，token 会变，URL 现取。整个工作空间目录可整体拷贝/同步到任意电脑，无需 C 盘用户目录。
