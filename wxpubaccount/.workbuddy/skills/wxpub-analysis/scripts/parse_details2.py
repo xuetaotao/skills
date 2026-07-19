@@ -24,29 +24,33 @@ def first(t, pat):
 def parse_file(path):
     t = open(path, encoding="utf-8").read()
     out = {}
-    # reads: 阅读 -> generic -> "556 人"
-    m = re.search(r'StaticText "阅读"\s*\n\s*- generic\s*\n\s*- StaticText "(\d+) 人"', t)
-    if m: out["reads"] = int(m.group(1))
+    # reads: 阅读 -> generic -> "1,925 人" (大数带千分位逗号)
+    m = re.search(r'StaticText "阅读"\s*\n\s*- generic\s*\n\s*- StaticText "([\d,]+) 人"', t)
+    if m: out["reads"] = int(m.group(1).replace(",", ""))
     # 完读率 -> "48%"
     m = re.search(r'完读率"\s*\n\s*- StaticText "(\d+(?:\.\d+)?)%"', t)
     if m: out["completion"] = float(m.group(1))
     # 新增关注 -> "4 人" (optional generic in between)
-    m = re.search(r'新增关注"\s*(?:\n\s*- generic\s*\n)?\s*- StaticText "(\d+) 人"', t)
-    if m: out["new_follows"] = int(m.group(1))
-    # 分享 / 留言 / 收藏 (互动 block, plain numbers)
-    m = re.search(r'分享"\s*\n\s*- StaticText "(\d+)"', t)
-    if m: out["shares"] = int(m.group(1))
-    m = re.search(r'留言"\s*\n\s*- StaticText "(\d+)"', t)
-    if m: out["comments"] = int(m.group(1))
-    m = re.search(r'收藏"\s*\n\s*- StaticText "(\d+)"', t)
-    if m: out["collections"] = int(m.group(1))
+    m = re.search(r'新增关注"\s*(?:\n\s*- generic\s*\n)?\s*- StaticText "([\d,]+) 人"', t)
+    if m: out["new_follows"] = int(m.group(1).replace(",", ""))
+    # 分享 / 留言 / 收藏 (互动 block, plain numbers, 大数可能带逗号)
+    m = re.search(r'分享"\s*\n\s*- StaticText "([\d,]+)"', t)
+    if m: out["shares"] = int(m.group(1).replace(",", ""))
+    m = re.search(r'留言"\s*\n\s*- StaticText "([\d,]+)"', t)
+    if m: out["comments"] = int(m.group(1).replace(",", ""))
+    m = re.search(r'收藏"\s*\n\s*- StaticText "([\d,]+)"', t)
+    if m: out["collections"] = int(m.group(1).replace(",", ""))
     # 听全文 (context metric)
     m = re.search(r'听全文"\s*\n\s*- StaticText "(\d+) 人"', t)
     if m: out["listen_full"] = int(m.group(1))
-    # 渠道 (chart images): image "推荐, 91.007."
+    # 渠道 (chart images): image "推荐, 91.007." —— 只保留真实流量来源，
+    # 排除"送达人数/消息阅读人数/首次分享人数/总分享人数/分享产生的阅读人数"等干扰指标
+    TRAFFIC = {"推荐","搜一搜","公众号主页","公众号消息","其它","聊天会话","朋友圈"}
     ch = {}
     for name, val in re.findall(r'image "([^,]+?),\s*([\d.]+)\.', t):
-        ch[name.strip()] = float(val)
+        nm = name.strip()
+        if nm in TRAFFIC:
+            ch[nm] = float(val)
     if ch: out["channels"] = ch
     # 性别: StaticText "女 6.83%女 6.83%"
     g = {}

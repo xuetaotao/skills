@@ -25,6 +25,21 @@ REPORTS = os.path.join(BASE, "reports")
 details = json.load(open(f"{DATA}/article_details2.json", encoding="utf-8"))  # 17 fresh
 arts32 = json.load(open(f"{DATA}/recent_articles.json", encoding="utf-8"))     # 32 reads
 
+# ---- parse content analysis snapshot: traffic source + total readers (动态，不写死) ----
+import re as _re
+_ca_path = f"{RAW}/content_analysis.txt"
+_traffic = {}
+TOTAL_READERS = None
+if os.path.exists(_ca_path):
+    _ca = open(_ca_path, encoding="utf-8").read()
+    for _n, _v in _re.findall(r'image "([^,]+?),\s*([\d.]+)\.', _ca):
+        _traffic[_n.strip()] = float(_v)
+    _m = _re.search(r'阅读总人数：([\d,]+)人', _ca)
+    if _m: TOTAL_READERS = int(_m.group(1).replace(",", ""))
+REC_PCT = _traffic.get("推荐")
+TRAFFIC_ORDER = [("推荐","推荐"),("搜一搜","搜一搜"),("公众号主页","公众号主页"),
+                 ("公众号消息","公众号消息(粉丝主动)"),("其它","其它"),("聊天会话","聊天会话")]
+
 WK = ["周一","周二","周三","周四","周五","周六","周日"]
 
 # ---------- helpers ----------
@@ -86,6 +101,7 @@ brand=[coef(d.get("reads")) for d in details if "具名主体" in classify(d["ti
 nonb=[coef(d.get("reads")) for d in details if "具名主体" not in classify(d["title"])]
 brand_avg=round(sum(brand)/len(brand),1) if brand else 0
 nonb_avg=round(sum(nonb)/len(nonb),1) if nonb else 0
+lift = round(brand_avg/nonb_avg) if nonb_avg else 0
 
 # ---------- Pass E: aggregation / power law / attribution ----------
 total_reads = sum(a["reads"] for a in arts32)
@@ -96,18 +112,25 @@ attr_total = sum(coef(d.get("new_follows")) for d in details)
 top_follow = max(details, key=lambda d: coef(d.get("new_follows")))
 
 def weighted(field):
-    agg=defaultdict(float); tot=0.0
+    # 只聚合「推荐主导」的高阅读单篇画像，排除低样本(<50阅读)文章，避免失真
+    agg=defaultdict(float); tot=0.0; n_art=0
     for d in details:
         r=coef(d.get("reads"))
-        if not r: continue
+        if not r or r < 50: continue
+        ch=d.get("channels") or {}
+        if ch.get("推荐",0) < 50: continue
+        n_art+=1
         for k,v in (d.get(field) or {}).items():
             agg[k]+=v*r; tot+=v*r
-    return {k:round(v/tot*100,1) for k,v in agg.items()} if tot else {}
-age_agg=weighted("age"); gender_agg=weighted("gender")
-reg_agg=defaultdict(float); rtot=0.0
+    return {k:round(v/tot*100,1) for k,v in agg.items()} if tot else {}, n_art
+age_agg,_=weighted("age"); gender_agg,_=weighted("gender")
+reg_agg=defaultdict(float); rtot=0.0; n_reg=0
 for d in details:
     r=coef(d.get("reads"))
-    if not r: continue
+    if not r or r < 50: continue
+    ch=d.get("channels") or {}
+    if ch.get("推荐",0) < 50: continue
+    n_reg+=1
     for name,pct in (d.get("region") or []):
         v=float(pct.rstrip("%")); reg_agg[name]+=v*r; rtot+=v*r
 region_sorted=sorted([(k,round(v/rtot*100,1)) for k,v in reg_agg.items() if k!="未知"], key=lambda x:-x[1])[:7]
@@ -118,6 +141,7 @@ def bar(label, val, maxv, color="#2b6cb0", sub=""):
     return f'<div class="row"><span class="lab" title="{label}">{label}</span><div class="track"><div class="fill" style="width:{pct:.1f}%;background:{color}"></div></div><span class="val">{val}{sub}</span></div>'
 def hbar(label, pct, color="#38a169"):
     return f'<div class="row"><span class="lab">{label}</span><div class="track"><div class="fill" style="width:{pct:.1f}%;background:{color}"></div></div><span class="val">{pct:.1f}%</span></div>'
+sec_traffic = "".join(hbar(lbl, _traffic.get(key, 0.0), "#4299e1") for key, lbl in TRAFFIC_ORDER)
 
 # section HTML
 sec_freq = "".join(bar(WK[i], wd_cnt[i], max(wd_cnt[i] for i in range(7)) or 1, "#4299e1") for i in range(7))
@@ -166,7 +190,7 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
 
 <div class="callout">
 <b>一句话结论：</b>你的粉丝 <b>100% 来自文章页</b>（用户分析实证：30 天新增 10 人，饼图仅 1 片=文章页关注）。
-涨阅读靠「<b>具名主体 + 冲突</b>」标题（杠杆 ≈ <b>43 倍</b>），且<b>周二</b>发文吃掉 60% 阅读；
+涨阅读靠「<b>具名主体 + 冲突</b>」标题（杠杆 ≈ <b>{lift}×</b>），且<b>周二</b>发文吃掉 {tue_share}% 阅读；
 涨粉靠「<b>完读率 × 分享率 × 平台相关度</b>」——数据证实：关注与阅读量几乎无关（r={r_read}），却与完读×分享高度相关（r={r_prod}）。
 所以：<b>把爆款稿安排在周二、用"具名+冲突"引爆推荐，并在爆款里优先选"微信/工具/理财"相关角度</b>，是提阅读+涨粉的同一套打法。
 </div>
@@ -176,7 +200,7 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
   <div class="kpi"><div class="n">4.0</div><div class="l">周均发文（篇/周）</div></div>
   <div class="kpi"><div class="n">{total_reads}</div><div class="l">32 篇累计阅读</div></div>
   <div class="kpi"><div class="n">{round(top3/total_reads*100)}%</div><div class="l">头部3篇阅读占比</div></div>
-  <div class="kpi"><div class="n">43×</div><div class="l">具名标题阅读杠杆</div></div>
+  <div class="kpi"><div class="n">{lift}×</div><div class="l">具名标题阅读杠杆</div></div>
   <div class="kpi"><div class="n">{tue_share}%</div><div class="l">周二贡献阅读占比</div></div>
   <div class="kpi"><div class="n">{attr_total}</div><div class="l">窗口内文章吸粉（个）</div></div>
 </div>
@@ -255,14 +279,9 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
 
 <h2>八、流量结构：几乎全靠推荐分发</h2>
 <div class="card">
-  <div class="legend">账号级阅读来源（内容分析，阅读总人数 3,489）</div>
-  {hbar("推荐", 91.14, "#4299e1")}
-  {hbar("搜一搜", 2.98, "#4299e1")}
-  {hbar("公众号主页", 2.72, "#4299e1")}
-  {hbar("公众号消息(粉丝主动)", 1.81, "#4299e1")}
-  {hbar("其它", 1.43, "#4299e1")}
-  {hbar("聊天会话", 0.66, "#4299e1")}
-  <div class="note">粉丝主动打开仅 1.81%。<b>增长几乎完全取决于算法推荐</b>，因此"为推荐优化"（前 3 句抓人、短段落、高完读）是阅读量第一杠杆；"搜一搜"2.98% 零成本，值得吃长尾。</div>
+  <div class="legend">账号级阅读来源（内容分析，阅读总人数 {TOTAL_READERS}）</div>
+  {sec_traffic}
+  <div class="note">粉丝主动打开仅 {_traffic.get("公众号消息",0):.2f}%。<b>增长几乎完全取决于算法推荐</b>，因此"为推荐优化"（前 3 句抓人、短段落、高完读）是阅读量第一杠杆；"搜一搜"{_traffic.get("搜一搜",0):.2f}% 零成本，值得吃长尾。</div>
 </div>
 
 <h2>九、读者画像：谁在看你（单篇聚合，样本加权）</h2>
@@ -274,6 +293,7 @@ th{{background:#f7fafc;color:#4a5568;font-weight:600;}} td.t{{text-align:left;ma
     <div style="flex:1;min-width:260px;"><div class="legend">地域 Top（加权）</div>{sec_region}</div>
   </div>
   <div class="note">读者以 <b>26-45 岁、男性占绝对多数</b>为主，集中在 <b>广东/浙江/江苏/河南/四川</b>。
+  <b>口径：</b>粉丝&lt;100 时账号级画像隐藏，此处为「推荐主导的高阅读单篇」画像按阅读量加权聚合（已排除 2–15 阅读的极低样本文，避免失真）；样本数 ≈ {n_reg} 篇。
   <b>里程碑：</b>账号级画像（性别/年龄/城市/终端/活跃时间）在<b>粉丝达 100 后次日自动解锁</b>——这是你下一个明确目标。</div>
 </div>
 
