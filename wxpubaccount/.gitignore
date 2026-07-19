@@ -1,0 +1,14 @@
+# 公众号分析工作空间：以下均为"每次重跑会自动重新生成"的产物，无需提交远程仓库
+
+# 抓取数据：data/raw 原始快照 + data/processed 清洗 JSON，每次扫码重跑都会重新产生
+data/
+
+# 报告：每次重跑生成，文件名带日期（见 reports/），历史版在 reports/archive/
+reports/
+
+# 会话 token 会过期，纯本地临时值，不提交
+token.txt
+
+# 放行可复用技能（其余 .workbuddy 内容仍按根 .gitignore 的 **/.workbuddy/** 忽略）
+!.workbuddy/skills/
+!.workbuddy/skills/**
