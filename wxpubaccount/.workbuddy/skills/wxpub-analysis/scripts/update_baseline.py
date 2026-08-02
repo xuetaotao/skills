@@ -170,6 +170,75 @@ avg_fan_active = round(sum(e["fan_active"] for e in eng_data)/len(eng_data), 1) 
 high_eng_follows = sum(e["new_follows"] for e in eng_data if e["eng_rate"] >= 5)
 low_eng_follows = sum(e["new_follows"] for e in eng_data if e["eng_rate"] < 5)
 
+# ---- 7.6 有效角度模式（从历史数据学"角度规律"，不学"话题"）----
+# 关键设计：话题开放（任何新热点都能套），角度从历史数据学（什么结构/切口有效）
+ANGLE_MARKERS = [
+    ("方法论/科普体", ["一文看懂", "如何", "方法", "技巧", "指南", "体系", "入门", "科普", "原理"]),
+    ("复盘体",       ["复盘", "周度", "总结", "回顾", "这件事", "这一周"]),
+    ("对比/选择体",  [" vs ", "还是", "该选", "怎么选", "和", "对比", "区别"]),
+    ("清单/数字体",  ["3个", "三个", "5个", "几个", "清单", "步骤", "件事", "动作"]),
+    ("冲突/风险体",  ["撕下", "归零", "扛不住", "崩", "慌了", "危险", "陷阱", "别再", "误区"]),
+    ("机会/判断体",  ["机会", "值得", "该不该", "到底", "真正", "信号", "趋势", "下一步"]),
+    ("平台生态体",   ["来了", "更新", "发布", "上线", "改版", "接入", "开放"]),
+    ("决策框架体",   ["判断", "框架", "标准", "怎么算", "该不该", "值不值"]),
+]
+
+def detect_angles(title):
+    tags = []
+    t = title.lower()
+    for angle_name, markers in ANGLE_MARKERS:
+        if any(m.lower() in t for m in markers):
+            tags.append(angle_name)
+    return tags or ["普通"]
+
+# 统计每种角度的平均互动率/完读率/关注转化
+angle_stats = defaultdict(lambda: {"n":0, "eng_rates":[], "completions":[], "follow_conv":[], "titles":[]})
+for d in details_full:
+    r = coef(d.get("reads"))
+    if not r: continue
+    sh = coef(d.get("shares")); cm = coef(d.get("comments")); co = coef(d.get("collections"))
+    nf_one = coef(d.get("new_follows")); comp_one = coef(d.get("completion"))
+    eng_rate = round((sh+cm+co)/r*100, 1)
+    follow_conv = round(nf_one/r*100, 2)
+    for angle in detect_angles(d["title"]):
+        s = angle_stats[angle]
+        s["n"] += 1
+        s["eng_rates"].append(eng_rate)
+        s["completions"].append(comp_one)
+        s["follow_conv"].append(follow_conv)
+        s["titles"].append(d["title"][:24])
+
+# 挑出表现好的角度（互动率或关注转化高于平均）
+effective_angles = []
+for angle, s in angle_stats.items():
+    if s["n"] == 0: continue
+    avg_eng = round(sum(s["eng_rates"])/s["n"], 1)
+    avg_comp = round(sum(s["completions"])/s["n"], 1)
+    avg_fc = round(sum(s["follow_conv"])/s["n"], 2)
+    # 角度有效性信号：互动率>=5 或 关注转化>=0.5 或 完读>=40
+    effective = avg_eng >= 5 or avg_fc >= 0.5 or avg_comp >= 40
+    effective_angles.append({
+        "angle": angle,
+        "n": s["n"],
+        "avg_engagement_rate": avg_eng,
+        "avg_completion": avg_comp,
+        "avg_follow_conv_pct": avg_fc,
+        "effective": effective,
+        "example_titles": s["titles"][:3],
+    })
+effective_angles.sort(key=lambda x: -(x["avg_engagement_rate"] + x["avg_follow_conv_pct"]*2 + x["avg_completion"]/5))
+
+# 零关注高阅读的"虚胖"模式（避坑）
+zero_follow_patterns = []
+for d in details_full:
+    r = coef(d.get("reads")); nf_zf = coef(d.get("new_follows"))
+    if r >= 30 and nf_zf == 0:
+        zero_follow_patterns.append({
+            "title": d["title"][:30], "reads": r,
+            "angles": detect_angles(d["title"]),
+            "warning": "高阅读0关注，话题与账号定位无关或停留在公司新闻层面",
+        })
+
 # ---- 8. 读者地域 Top ----
 reg_agg = defaultdict(float); rtot = 0.0
 for d in details:
@@ -260,6 +329,12 @@ baseline = {
         "samples": sorted(eng_data, key=lambda x: -x["eng_rate"])[:5],
         "interpretation": "互动率=(分享+留言+收藏)/阅读。高互动文章累积推荐权重，长远利好阅读增长和涨粉。高互动(≥5%)文章合计关注 vs 低互动(<5%)文章合计关注，可看出互动对涨粉的间接作用。",
     },
+    "angle_patterns": {
+        "effective_angles": [a for a in effective_angles if a["effective"]],
+        "all_angles": effective_angles,
+        "zero_follow_patterns": zero_follow_patterns[:5],
+        "design_note": "话题开放（任何新热点/定位内方向都能套），角度从历史数据学（什么结构/切口有效）。推荐器用 effective_angles 生成价值型选题，不限定话题。",
+    },
     "fan_status": {
         "fans": fans,
         "growth_month_pct": growth_month,
@@ -275,4 +350,5 @@ print(f"  数据窗口: {baseline['data_window']['start']} ~ {baseline['data_win
 print(f"  标题杠杆: {baseline['title_formula']['lift']}× (具名均 {brand_avg} vs 非具名均 {nonb_avg})")
 print(f"  周二占比: {baseline['weekday_pattern']['tue_share_pct']}% ({baseline['weekday_pattern']['tue_n']} 篇)")
 print(f"  涨粉相关: r_read={baseline['follow_mechanism']['r_read_vs_follow']} r_prod={baseline['follow_mechanism']['r_completion_x_share_vs_follow']}")
+print(f"  有效角度: {', '.join(a['angle']+'('+str(a['avg_engagement_rate'])+'%)' for a in baseline['angle_patterns']['effective_angles'][:4])}")
 print(f"  粉丝: {fans} (月增 {growth_month}%), 距 100 粉约 {months_100} 个月")

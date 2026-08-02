@@ -12,7 +12,8 @@ wxpubaccount/
 ├── data/                     # 自动生成的中间数据，git 忽略，可随时删除（重跑 Skill 即再生）
 │   ├── raw/                  # 原始快照（.txt）：文章详情 / 发表记录 / 内容·用户分析 / 登录二维码
 │   ├── processed/            # 清洗后的 JSON（由 raw 派生，含 hit_baseline.json 爆款预测基准）
-│   └── audit/                # 对抗式审查报告等一次性诊断快照（git 忽略）
+│   ├── audit/                # 对抗式审查报告等一次性诊断快照（git 忽略）
+│   └── topic_recommendations/ # 选题推荐输出（latest + 带时间戳的 md/json）
 └── .workbuddy/
     ├── skills/wxpub-analysis/  # 分析流水线技能（SKILL.md + scripts/，含 predict_hit.py 爆款预测器）
     └── memory/                 # 每日工作日志
@@ -62,6 +63,7 @@ wxpubaccount/
 - `generate_final2.py`：生成带日期的 HTML 报告到 `reports/`（11 节，含"互动深度分析"），报告生成后自动调用 update_baseline.py 刷新爆款预测基准
 - `update_baseline.py`：从最新数据生成 `data/processed/hit_baseline.json`（爆款预测基准快照，含互动基准 + 账号定位）
 - `predict_hit.py`：爆款预测器——输入标题草稿+主题+计划发文日，输出 4 维评分卡（阅读/涨粉/互动/定位匹配）+ 建议
+- `recommend_topics.py`：选题推荐器——抓近期热点 RSS + 生成价值型选题，再调用爆款预测器筛出优先可写题，并生成文章大纲
 
 脚本自动从自身位置向上探测到本工作空间根目录，因此在工作空间任意位置调用都能正确读写 `data/` 与 `reports/`。
 
@@ -73,6 +75,47 @@ python .workbuddy/skills/wxpub-analysis/scripts/predict_hit.py \
   --day 周二
 ```
 输出 4 维评分卡：📈阅读爆款潜力 / 💚涨粉潜力 / 🔥互动潜力 / 📍定位匹配（账号定位=科技/商业/金融，偏离时给调整建议）。基准随每次数据复盘自动更新。
+
+## 选题推荐（热点 + 价值方向 + 自动大纲）
+```bash
+# 默认会抓热点、补价值型方向，并写入 data/topic_recommendations/
+python .workbuddy/skills/wxpub-analysis/scripts/recommend_topics.py
+
+# 直接传自然语言需求（推荐这种用法）
+python .workbuddy/skills/wxpub-analysis/scripts/recommend_topics.py \
+  --ask "给我推荐3个偏实用的微信AI和搜一搜选题，下周二发"
+
+# 自定义热点词与输出数量
+python .workbuddy/skills/wxpub-analysis/scripts/recommend_topics.py \
+  --queries "微信 AI,微信 搜一搜,OpenAI agent,AI 搜索" \
+  --count 6
+
+# 只要价值型方向，不抓热点
+python .workbuddy/skills/wxpub-analysis/scripts/recommend_topics.py \
+  --ask "给我推荐几个非热点但有长期价值的AI选题" \
+  --offline
+
+# 自定义输出目录；若只想打印不落盘，可加 --no-save
+python .workbuddy/skills/wxpub-analysis/scripts/recommend_topics.py \
+  --output-dir data/topic_recommendations
+```
+
+默认输出到 `data/topic_recommendations/`：
+- `latest.md` / `latest.json`：最近一次结果；
+- `topic_recommendations_YYYYMMDD_HHMMSS.md/json`：按时间归档的历史结果。
+
+推荐器会先做一轮热点过滤，尽量剔除低相关新闻；再把剩余热点改写成“对读者有用”的角度，并补充像“微信搜一搜”这类**非纯热点但高价值**的方向。最终结果分两组：
+- **通过爆款预测器的选题**：优先写；
+- **未通过预测但值得保留**：会明确标注“未通过爆款预测”。
+
+每个候选题除了预测分，还会直接生成：
+- 备选标题
+- 写作建议点
+- 三段式文章大纲
+- 导语草稿 / 正文段落种子 / 结尾草稿
+- 素材清单与发文提醒
+
+如果你是在对话里直接说“给我推荐几个选题”，助手也可以直接调用这个脚本的 `--ask` 入口来完成，而不需要你手动拼参数。
 
 ## 已验证的核心结论（详见 reports/ 最新报告，数字随区间浮动）
 - **账号核心定位**：科技 / 商业 / 金融。偶尔极少数写社会现象类（须与定位相关）。
