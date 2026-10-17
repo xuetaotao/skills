@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>周期行业观测台</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">周期行业观测台</div>
+    <nav id="nav">
+      <a href="#/overview" data-nav="overview">总览</a>
+      <a href="#/metals" data-nav="metals">有色</a>
+      <a href="#/energy" data-nav="energy">能源</a>
+      <a href="#/shipping" data-nav="shipping">航运</a>
+      <a href="#/compare" data-nav="compare">股商对照</a>
+      <a href="#/reports" data-nav="reports">研判报告</a>
+      <a href="#/glossary" data-nav="glossary">术语百科</a>
+    </nav>
+    <div class="statusbox">
+      <span class="asof">数据更新至 <b id="dataAsOf">—</b></span>
+      <span class="asof sub">上次刷新 <span id="lastRefresh">—</span></span>
+      <button id="btnRefresh" title="重新抓取各数据源最新数据（增量）">
+        <span class="spin" id="spinIcon" style="display:none">⟳</span>
+        <span id="refreshText">刷新数据</span>
+      </button>
+    </div>
+  </div>
+  <div id="refreshError" class="refresh-error" style="display:none"></div>
+</header>
+<main id="view"><div class="loading">加载中…</div></main>
+<footer class="foot">
+  周期行业观测台 V1 · 数据来源：AKShare（新浪财经/东方财富/EIA/波罗的海交易所/申万）· 评分口径见各页脚注 · 本站仅为个人研究工具，不构成投资建议
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

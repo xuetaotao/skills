@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>周期行业观测台 · 建设规划方案（2026-09-19）</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: #f5f6f8; color: #2c3340; line-height: 1.75; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { font-size: 26px; margin: 8px 0 4px; color: #1a2233; }
+  .sub { color: #7a8291; font-size: 13px; margin-bottom: 24px; }
+  h2 { font-size: 20px; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid #2f5cff; color: #1a2233; }
+  h3 { font-size: 16px; margin: 22px 0 10px; color: #2c3340; }
+  p { margin: 8px 0; }
+  .card { background: #fff; border-radius: 10px; padding: 20px 24px; margin: 14px 0; box-shadow: 0 1px 4px rgba(30,40,60,.06); }
+  .tldr { background: linear-gradient(135deg,#eef3ff,#f6f9ff); border: 1px solid #d7e3ff; }
+  .tldr b { color: #2f5cff; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; background: #fff; font-size: 13.5px; }
+  th { background: #f0f3f8; color: #4a5568; font-weight: 600; text-align: left; }
+  th, td { padding: 9px 12px; border: 1px solid #e4e8ef; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafbfd; }
+  .ok { color: #0a8f4d; font-weight: 600; }
+  .warn { color: #c07800; font-weight: 600; }
+  .todo { color: #b04a4a; font-weight: 600; }
+  .tag { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; margin-right: 6px; }
+  .tag-blue { background: #e8efff; color: #2f5cff; }
+  .tag-green { background: #e2f6ea; color: #0a8f4d; }
+  .tag-red { background: #fdeaea; color: #c0392b; }
+  .tag-orange { background: #fdf3e2; color: #c07800; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin: 14px 0; }
+  .metric { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(30,40,60,.06); }
+  .metric .name { font-size: 13px; color: #7a8291; }
+  .metric .val { font-size: 21px; font-weight: 700; margin: 2px 0; color: #1a2233; }
+  .metric .chg { font-size: 12.5px; }
+  .up { color: #d03a3a; }
+  .down { color: #0a8f4d; }
+  .stage-band { display: flex; margin: 18px 0; border-radius: 8px; overflow: hidden; font-size: 12.5px; text-align: center; }
+  .stage-band div { flex: 1; padding: 10px 4px; color: #fff; }
+  .s1 { background: #7a8291; } .s2 { background: #55718f; } .s3 { background: #c07800; } .s4 { background: #d03a3a; } .s5 { background: #a03030; } .s6 { background: #59606d; }
+  .stage-marker { text-align: center; font-size: 12px; color: #4a5568; margin-top: 4px; }
+  .flow { display: flex; align-items: stretch; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+  .flow-box { flex: 1; min-width: 150px; background: #fff; border: 1.5px solid #d7e3ff; border-radius: 10px; padding: 12px 14px; text-align: center; }
+  .flow-box .t { font-weight: 700; color: #2f5cff; font-size: 14px; margin-bottom: 4px; }
+  .flow-box .d { font-size: 12px; color: #5a6472; text-align: left; }
+  .flow-arrow { align-self: center; color: #9aa7bd; font-size: 20px; font-weight: 700; }
+  .mock { border: 2px dashed #b9c6dd; border-radius: 12px; padding: 18px; background: #fbfcfe; margin: 14px 0; }
+  .mock-title { font-size: 13px; color: #7a8291; margin-bottom: 12px; }
+  .mock-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .mock-card { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(30,40,60,.08); }
+  .mock-card .hd { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 14.5px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  .dot-red { background: #d03a3a; } .dot-amber { background: #e8a23d; } .dot-green { background: #2fa867; }
+  .mock-card .stage { font-size: 12.5px; color: #c07800; font-weight: 600; margin: 4px 0; }
+  .mock-card .row { font-size: 12px; color: #5a6472; display: flex; justify-content: space-between; padding: 2px 0; }
+  .note { font-size: 12.5px; color: #7a8291; background: #f4f6fa; border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
+  .decision { background: #fffbe9; border: 1px solid #f0e2b2; }
+  ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  .src { color: #9aa7bd; font-size: 12px; }
+  .disclaim { margin-top: 48px; padding: 16px 20px; background: #f4f6fa; border-radius: 10px; font-size: 12.5px; color: #6b7482; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>「周期行业观测台」建设规划方案</h1>
+<div class="sub">规划日期：2026-09-19 ｜ 规划人：小希 🌱 ｜ 状态：待主人确认后开工</div>
+
+<div class="card tldr">
+<b>TL;DR — 方案一句话：</b>建一个<b>周期行业观测网站</b>（Python 抓数据 + 周期定位分析引擎 + 网页面板），覆盖<b>有色金属（国内+国际定价）、能源（煤炭+原油）、航运</b>三大板块，核心输出不是罗列价格，而是每张数据都服务于一个问题——<b>“这个板块现在处于周期什么位置，我该进攻、持有还是防守”</b>。<br><br>
+<b>数据层已实测可行</b>（12 轮接口验证：BDI 38 年、WTI 原油 30 年、EIA 库存 43 年、伦敦金 20 年、国内期货 10 年），先前缺口（WTI/Brent 历史）已通过新浪外盘接口解决，剩余缺口（秦皇岛动力煤现货、SCFI）均有替代路径，<b>不阻塞开工</b>。<br><br>
+<b>在线发布：可以。</b>网站支持“本地完整版 + 一键发布静态快照”双模式——本地跑动态版（可缩放/下钻），需要分享时用「发布为应用」生成在线链接，别人浏览器直接看（数据为发布时点快照，日线级观测完全够用）。
+</div>
+
+<h2>一、为什么是这三个板块，观测逻辑是什么</h2>
+<div class="card">
+<p>三个板块同属<b>强周期行业</b>，股价弹性大、周期翻转快，但都有一个共同特点：<b>商品价格与运价等高频数据领先于财报</b>。等季报确认景气时，股价往往已走完一段。所以观测台的思路是——</p>
+<ul>
+<li><b>有色金属</b>：铜被称为“铜博士”，是全球制造业景气的体温计；铝则是“能源的价格影子”（电解铝 = 电老虎）。核心矛盾在矿端供给约束与库存水位。</li>
+<li><b>能源</b>：动力煤看“坑口—港口—电厂”的库存链条，原油看地缘与库存周期。煤炭板块的股息逻辑让它兼具周期+红利双重属性。</li>
+<li><b>航运</b>：运价是全球贸易需求的镜像，BDI 极低时往往是周期大底（2020 年 300 多点 vs 现在 3000+ 点），弹性极大。</li>
+</ul>
+<p><b>分析框架采用“周期六阶段 + 五维信号”</b>（详见第三节），避免把单次反弹误判为拐点——这正是周期股投资最容易亏钱的地方。</p>
+</div>
+
+<h2>二、当前市场快照（2026-09-18）—— 观测台建成后你会每天看到的东西</h2>
+<p class="src">来源：agentic_search 多源检索（研报/交易所/财经媒体）+ AKShare 实测接口交叉验证，数据截至 2026-09-18。部分研报口径数据需核实原文。</p>
+<div class="metric-grid">
+<div class="metric"><div class="name">沪铜主力（元/吨）</div><div class="val">109,620</div><div class="chg up">矿端 TC 加工费 -210 美元/吨，历史低位</div></div>
+<div class="metric"><div class="name">沪铝主力（元/吨）</div><div class="val">24,400</div><div class="chg up">LME 库存 36 年最低</div></div>
+<div class="metric"><div class="name">秦港 Q5500 动力煤（元/吨）</div><div class="val">977</div><div class="chg up">月环比 +113，逼近千元</div></div>
+<div class="metric"><div class="name">布伦特原油（美元/桶）</div><div class="val">103.90</div><div class="chg up">YTD +61.7%，中东断供驱动</div></div>
+<div class="metric"><div class="name">BDI（点）</div><div class="val">3,370</div><div class="chg up">近 1 年 +52.8%，五年高位回调中</div></div>
+<div class="metric"><div class="name">BDTI 原油运价（点）</div><div class="val">4,899</div><div class="chg up">近 1 年 +328%，地缘镜像</div></div>
+<div class="metric"><div class="name">伦敦金（美元/盎司）</div><div class="val">4,378</div><div class="chg up">实测 20 年序列最新值，与现货一致</div></div>
+<div class="metric"><div class="name">COMEX 铜（美分/磅）</div><div class="val">671.5</div><div class="chg up">折约 14,800 美元/吨，对 LME 溢价</div></div>
+</div>
+<div class="card">
+<b>当前四板块周期位置定性判断（检索综合）：</b>
+<table>
+<tr><th>板块</th><th>周期位置</th><th>主导驱动</th><th>风险点</th></tr>
+<tr><td><b>煤炭</b></td><td><span class="tag tag-red">高位加速</span>后转入淡季博弈</td><td>供给收缩（8月产量同比 -7.7%）+ 冬储预期</td><td>日耗季节性回落、现货接受度低</td></tr>
+<tr><td><b>原油</b></td><td><span class="tag tag-red">地缘高位</span>剧烈震荡</td><td>中东断供（海湾减产 734 万桶/日）+ 低库存</td><td>加息落地、成品油累库、地缘降温</td></tr>
+<tr><td><b>有色</b></td><td><span class="tag tag-orange">上行中段</span>结构性强</td><td>矿端硬约束 + 新能源/AI 需求</td><td>美联储加息、美元走强、旺季不旺</td></tr>
+<tr><td><b>航运</b></td><td><span class="tag tag-orange">五年高位</span>回调分化</td><td>运力刚性收紧 + 铁矿石/谷物货盘</td><td>大型船运力过剩、Q4 货盘走弱</td></tr>
+</table>
+<p class="note">⚠️ 四板块本轮景气共性是<b>供给端约束</b>而非需求扩张，叠加美联储 9 月重启加息的宏观逆风——这正是“高位区域，信号敏感期”，也是观测台最有价值的时刻：接下来每个信号的变化（库存拐点、期现结构反转、分位数突破）都值得盯。</p>
+</div>
+
+<h2>三、核心方法论：周期六阶段 × 五维信号</h2>
+<div class="card">
+<h3>3.1 周期六阶段定位（crisis-event 框架）</h3>
+<div class="stage-band">
+<div class="s1">下行尾声</div><div class="s2">底部磨底</div><div class="s3">上行初期</div><div class="s4">上行中段</div><div class="s5">高位见顶</div><div class="s6">下行初期</div>
+</div>
+<div class="stage-marker">判定依据：价格、库存、产能利用率、盈利趋势的组合——<b>核心不是看股价，而是看供需与产业链库存的实际变化</b></div>
+<p>每阶段策略含义完全不同：初期胜率最高（高弹性占优）→ 中段龙头最优（确定性）→ 高位逐步防守。观测台的任务就是把“现在在哪一段”用数据说话。</p>
+<h3>3.2 五维量化信号（每个板块的综合评分卡）</h3>
+<table>
+<tr><th>维度</th><th>算法</th><th>信号含义</th></tr>
+<tr><td><b>① 价格分位数</b></td><td>现价在过去 10 年的百分位</td><td>&lt;20% 低位绿灯 / &gt;80% 高位红灯；窗口跨周期，避免“只见半轮周期”</td></tr>
+<tr><td><b>② 动量</b></td><td>3月/6月/1年涨跌 + 现价 vs 50/200 日均线</td><td>双均线之上=上行趋势确认；动量拐头早于价格</td></tr>
+<tr><td><b>③ 库存信号</b></td><td>LME 金属库存 / EIA 原油库存的分位与趋势</td><td>去库=供给紧张，累库=宽松；库存拐点常领先价格 1-3 个月</td></tr>
+<tr><td><b>④ 期现结构</b></td><td>基差率（近月-现货）/期货月差</td><td>Backwardation（近月&gt;远月）=现货紧张；Contango=宽松</td></tr>
+<tr><td><b>⑤ 股商背离</b></td><td>商品价格 vs 申万板块指数的相对强弱</td><td>股先于商品见顶 / 商品的上涨尚未传导到股价，都是交易线索</td></tr>
+</table>
+<div id="chart_radar" style="width:100%;height:380px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(30,40,60,.06)"></div>
+<p class="note">上图为<b>评分卡形态示意</b>（非真实计算结果）——正式版每个维度都由真实历史数据计算，点击可下钻查看原始序列。航运板块的“库存”维度替换为“运力/新船订单”（数据源补充中）。</p>
+</div>
+
+<h2>四、指标体系与数据源清单（已实测）</h2>
+<div class="card">
+<h3>4.1 有色金属（国内 + 国际定价）</h3>
+<table>
+<tr><th>指标</th><th>数据源（AKShare 接口）</th><th>历史深度</th><th>验证状态</th></tr>
+<tr><td><b>伦敦金 XAU（美元/盎司）</b></td><td>futures_foreign_hist("XAU")（新浪外盘）</td><td>2006 至今（20 年）</td><td class="ok">✅ 已实测</td></tr>
+<tr><td><b>伦敦银 XAG（美元/盎司）</b></td><td>futures_foreign_hist("XAG")</td><td>2006 至今（20 年）</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>COMEX 金 GC（期货对照）</td><td>futures_foreign_hist("GC")</td><td>2016 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td><b>COMEX 铜 HG</b>（美分/磅，需换算）</td><td>futures_foreign_hist("HG")</td><td>2016 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td><b>LME 铝/镍/锌/锡/铅</b></td><td>futures_foreign_hist("AHD/NID/ZSD/SND/PBD")</td><td>2016 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>沪铜/铝/锌/镍主力连续（国内）</td><td>futures_main_sina（新浪期货）</td><td>2016 至今（10 年）</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>上海金/银 Au99.99·Ag99.99（国内外对照）</td><td>spot_hist_sge（上金所）</td><td>2016 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>LME 六金属库存</td><td>macro_euro_lme_stock</td><td>2014 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>黄金/白银 ETF 持仓（SPDR，情绪指标）</td><td>macro_cons_gold / macro_cons_silver</td><td>2004/2014 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>期现基差率</td><td>futures_spot_price_daily</td><td>滚动近期</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>申万有色指数（对照）</td><td>index_hist_sw(801050)</td><td>1999 至今（27 年）</td><td class="ok">✅ 已实测</td></tr>
+</table>
+<p class="note">国际定价价值：伦敦金/银是避险与实际利率的全球锚；LME/COMEX 铜铝代表国际供需定价（沪-伦比价变化反映国内溢价/出口窗口，本身就是周期信号）。LME 铜 LHC 接口数值单位异常（约缩小 100 倍），正式版以 COMEX 铜 HG 换算为主、LHC 校准后作对照。</p>
+<h3>4.2 能源（煤炭 + 原油）</h3>
+<table>
+<tr><th>指标</th><th>数据源</th><th>历史深度</th><th>验证状态</th></tr>
+<tr><td><b>WTI 原油 CL（美元/桶）</b></td><td>futures_foreign_hist("CL")（新浪外盘）</td><td><b>1996 至今（30 年）</b></td><td class="ok">✅ 已实测</td></tr>
+<tr><td><b>布伦特原油 OIL（美元/桶）</b></td><td>futures_foreign_hist("OIL")（新浪外盘）</td><td>2016 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>上海原油 SC 主力（国内）</td><td>futures_main_sina(SC0)</td><td>2018 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>焦煤/焦炭主力</td><td>futures_main_sina(JM0/J0)</td><td>2016 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>EIA 美国原油库存/产量</td><td>macro_usa_crude_inner</td><td>1983 至今（43 年）</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>中国能源价格指数</td><td>macro_china_energy_index</td><td>2011 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>成品油调价记录</td><td>energy_oil_hist</td><td>2000 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>秦港 Q5500 动力煤现货</td><td>无免费接口 → <b>替代</b>：能源指数+焦煤期货；另建手动补录</td><td>—</td><td class="todo">⛔ 缺口-有替代</td></tr>
+<tr><td>申万煤炭指数（对照）</td><td>index_hist_sw(801950)</td><td>2014 至今</td><td class="ok">✅ 已实测</td></tr>
+</table>
+<p class="note">国际油价观测新增 WTI 30 年 + 布伦特 10 年序列（此前缺口已解决）：油价分位数、月差结构（contango/backwardation）现在都能直接计算。布伦特 OIL 为期货口径（与现货主力约差 4-5 美元），页面将标注合约口径。</p>
+<h3>4.3 航运</h3>
+<table>
+<tr><th>指标</th><th>数据源</th><th>历史深度</th><th>验证状态</th></tr>
+<tr><td>BDI 综合指数</td><td>macro_shipping_bdi</td><td><b>1988 至今（38 年）</b></td><td class="ok">✅ 已实测</td></tr>
+<tr><td>BCI/BPI/BSI 分船型</td><td>macro_shipping_bci/bpi + bsi_index</td><td>1998/2006 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>BDTI/BCTI 油轮运价</td><td>macro_china_bdti_index / freight_index</td><td>2001/2006 至今</td><td class="ok">✅ 已实测</td></tr>
+<tr><td>SCFI 集装箱运价</td><td>无接口 → 上海航运交易所官网抓取（V2）</td><td>—</td><td class="todo">⛔ V2 补齐</td></tr>
+<tr><td>申万航运板块（对照）</td><td>801073 已断更（2021）→ 用申万交运 801170 或东财“航运港口”板块</td><td>—</td><td class="warn">⚠️ 换口径解决</td></tr>
+</table>
+<p class="note"><b>交叉验证说明</b>：AKShare 实测值与独立检索的市场数据已互相印证（沪铜 109,620 / BDI 3,370 / 沪铝 24,400 / SC 原油 728，两源完全一致），数据可信度经过双重确认。东财部分域名（push2his/push2 系列）被本机代理 127.0.0.1:3380 拦截，部署时设置 NO_PROXY 或换新浪源即可解决，不影响核心功能。</p>
+</div>
+
+<h2>五、技术架构</h2>
+<div class="card">
+<div class="flow">
+<div class="flow-box"><div class="t">数据源层</div><div class="d">AKShare（新浪期货/东财宏观/申万）<br>官方接口已全部实测</div></div>
+<div class="flow-arrow">→</div>
+<div class="flow-box"><div class="t">抓取层 fetcher</div><div class="d">分板块抓取脚本<br>增量更新 + 失败重试 + 来源标记</div></div>
+<div class="flow-arrow">→</div>
+<div class="flow-box"><div class="t">存储层</div><div class="d">SQLite（时序行情+指标）<br>本地文件，无服务依赖</div></div>
+<div class="flow-arrow">→</div>
+<div class="flow-box"><div class="t">分析层 analyzer</div><div class="d">分位数/动量/库存/期现结构<br>周期阶段评分引擎</div></div>
+<div class="flow-arrow">→</div>
+<div class="flow-box"><div class="t">展示层 web</div><div class="d">FastAPI + ECharts<br>浏览器访问 localhost</div></div>
+</div>
+<h3>目录结构</h3>
+<table>
+<tr><th>路径</th><th>职责</th></tr>
+<tr><td><code>business_tracking/</code></td><td>项目根</td></tr>
+<tr><td><code>fetcher/</code></td><td>fetch_metals.py / fetch_energy.py / fetch_shipping.py / fetch_stocks.py + update.py（增量更新入口）</td></tr>
+<tr><td><code>analyzer/</code></td><td>quantile.py（分位数）/ momentum.py（动量）/ basis.py（期现结构）/ cycle_stage.py（周期评分卡）/ report.py（研判数据）</td></tr>
+<tr><td><code>data/</code></td><td>SQLite 数据库 + 手动补录 JSON（动力煤现货价等）</td></tr>
+<tr><td><code>web/</code></td><td>app.py（FastAPI）+ static/（ECharts 前端）</td></tr>
+<tr><td><code>reports/</code></td><td>定期研判报告（HTML，我结合检索撰写后放入）</td></tr>
+</table>
+<p><b>更新机制</b>：日常一条命令 <code>python update.py</code> 增量拉取（日线数据量小，全量补历史也只需几分钟）；后续可配 Windows 计划任务或 WorkBuddy 自动化定时跑。</p>
+</div>
+
+<h2>六、在线发布方案（主人已确认需要分享功能）</h2>
+<div class="card">
+<p>确认可以发布成在线网站：WorkBuddy 有「发布为应用」能力，把本地项目变成一个在线链接，别人浏览器打开即可查看，无需装任何东西。支持静态站点、Node/Python/Go 单端口服务。</p>
+<h3>6.1 双模式架构（推荐）</h3>
+<table>
+<tr><th>模式</th><th>技术形态</th><th>适用场景</th></tr>
+<tr><td><b>本地完整版</b></td><td>FastAPI + SQLite，localhost 访问</td><td>自己日常看盘：数据更新、交互下钻、历史回溯</td></tr>
+<tr><td><b>在线分享版</b></td><td>数据导出 JSON + 静态页面 → 一键发布在线链接</td><td>发给朋友/伙伴看：打开就是最新一次数据快照的全部图表和研判</td></tr>
+</table>
+<h3>6.2 为什么分享版用静态快照而不是云端实时抓取</h3>
+<ul>
+<li>周期观测本来是<b>日线级别</b>的事，分享版 = “发布那一刻的完整切片”，完全够用</li>
+<li>云端实时抓数据（AKShare）每次请求要几秒到几十秒，别人打开页面会很慢，且公开接口有反爬限流风险</li>
+<li>本地跑 <code>update.py</code> 后重新发布一次即可，数据永远和你的研判同步</li>
+</ul>
+<p class="note">发布动作预演：网站建好后，一条命令（或一句话让我）执行「发布为应用」→ 得到在线链接 → 任何时候数据更新后重新发布覆盖。链接可随时下线。</p>
+</div>
+
+<h2>七、页面设计（5 个页面）与全站体验规则</h2>
+<div class="card">
+<h3>7.0 五条体验铁律（主人 2026-09-19 指定，全站强制执行）</h3>
+<table>
+<tr><th>#</th><th>规则</th><th>落地方式</th></tr>
+<tr><td><b>① 结论先行</b></td><td>每个页面、每份研判报告，第一屏就是结论，不让人翻页找答案</td><td>板块卡首行 = 周期阶段 + 价格分位判断；研判报告首屏 = 结论卡</td></tr>
+<tr><td><b>② 分位数判断</b></td><td>像 PE 百分位那样，所有结论必须回答“当前价格相对历史是高还是低”</td><td>每个价格指标自动计算并展示“近 10 年第 N 分位”，配低/中/高标识；图表画分位通道（10/25/50/75/90 分位水平线）</td></tr>
+<tr><td><b>③ 术语百科</b></td><td>专有名词（TC/RC、contango、基差、长协价…）不用自己查</td><td>新增“术语百科”页面；正文里术语带虚线下划线，鼠标悬停/点击弹出白话解释，可跳转百科</td></tr>
+<tr><td><b>④ 快捷跳转</b></td><td>一键跳到第二、三、四…个板块</td><td>顶部固定导航条（锚点跳转）：总览 / 有色 / 能源 / 航运 / 对照 / 研判 / 术语，滚动时高亮当前所在板块</td></tr>
+<tr><td><b>⑤ 图形优先</b></td><td>数据结合图形看，比纯数字直观得多</td><td>每个板块详情页标配“走势+分位通道+库存+对比”四类图；研判报告每个结论旁边配核心图；图/表可切换</td></tr>
+</table>
+</div>
+<div class="mock">
+<div class="mock-title">原型示意 ② —— 顶部固定导航条（体验铁律 ④）：点「能源」直接跳到能源板块，滚动时高亮</div>
+<div style="background:#1a2233;border-radius:8px;padding:8px 14px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;">
+<span style="color:#fff;font-weight:700;">周期行业观测台</span>
+<span style="color:#9fb4ff;border-bottom:2px solid #2f5cff;padding-bottom:2px;">总览</span>
+<span style="color:#aeb8c8;">有色金属</span>
+<span style="color:#aeb8c8;">能源</span>
+<span style="color:#aeb8c8;">航运</span>
+<span style="color:#aeb8c8;">股商对照</span>
+<span style="color:#aeb8c8;">研判报告</span>
+<span style="color:#aeb8c8;">术语百科</span>
+</div>
+<p class="note">导航条在所有页面顶部常驻（sticky），当前所在板块高亮。研判报告这类长文档内部同样有章节快捷条。</p>
+</div>
+<div class="mock">
+<div class="mock-title">原型示意 ① —— 总览仪表盘（首页）：三板块周期位置一眼看完，结论先行（铁律 ①②）</div>
+<div class="mock-cards">
+<div class="mock-card"><div class="hd">有色金属 <span class="dot dot-amber"></span></div><div class="stage">上行中段（评分 68）</div>
+<div class="row"><span>沪铜 10 年分位</span><b>72%（中高位）</b></div><div class="row"><span>伦敦金 20 年分位</span><b>99%（极高位）</b></div><div class="row"><span>LME 铜库存趋势</span><b class="up">去库 ↓</b></div><div class="row"><span>股商相对强弱</span><b>股弱于铜</b></div></div>
+<div class="mock-card"><div class="hd">能源 <span class="dot dot-red"></span></div><div class="stage">高位见顶观察（评分 81）</div>
+<div class="row"><span>WTI 30 年分位</span><b>88%（高位）</b></div><div class="row"><span>SC 原油 10 年分位</span><b>94%（高位）</b></div><div class="row"><span>EIA 库存趋势</span><b class="up">去库 ↓</b></div><div class="row"><span>煤焦 vs 股价</span><b>共振</b></div></div>
+<div class="mock-card"><div class="hd">航运 <span class="dot dot-amber"></span></div><div class="stage">高位回调（评分 74）</div>
+<div class="row"><span>BDI 38 年分位</span><b>85%（高位）</b></div><div class="row"><span>大小船分化 BCI/BSI</span><b>大船弱</b></div><div class="row"><span>BDTI 独立走强</span><b class="up">地缘驱动</b></div><div class="row"><span>申万航运相对强弱</span><b>股滞涨于运价</b></div></div>
+</div>
+<p class="note">灯色 = 周期阶段：绿（底部区域，找机会埋伏）→ 黄（上行中段，持有为主）→ 红（高位区域，跟踪退出信号）。所有数字为原型示意，正式版由数据实时计算。</p>
+</div>
+<div class="card">
+<table>
+<tr><th>页面</th><th>内容</th><th>关键交互</th></tr>
+<tr><td><b>① 总览仪表盘</b></td><td>首屏结论卡：三板块周期位置 + <b>核心指标分位数</b>（低/中/高标识）+ 异动提示</td><td>点卡片下钻到板块</td></tr>
+<tr><td><b>② 板块详情</b></td><td>四类图：价格走势（10-30 年可缩放）+ <b>分位通道图</b>（10/25/50/75/90 分位线，一眼看出高低位）+ 库存/持仓叠图 + 期现结构；国内国际价格对照（沪-伦比价）</td><td>图/表切换、周期区间选择、品种切换</td></tr>
+<tr><td><b>③ 股商对照</b></td><td>商品价格 vs 申万板块指数双轴对比 + 背离检测标注（哪个先动）</td><td>对数坐标切换</td></tr>
+<tr><td><b>④ 研判报告</b></td><td><b>首屏结论卡</b>（每板块一行：阶段+分位+方向）→ 逐板块图文展开（每个结论配核心图）→ 风险提示。我每周结合最新数据 + 多源检索撰写</td><td>章节锚点导航、历史归档</td></tr>
+<tr><td><b>⑤ 术语百科</b></td><td>专有名词白话解释库：TC/RC（铜精矿加工费）、contango/backwardation（期货升贴水结构）、基差、长协价、BDI 分船型、锚地、去库/累库、沪伦比…每个词条 = 白话解释 + 为什么重要 + 当前读数在哪看</td><td>搜索、按板块分类、正文术语点击跳转</td></tr>
+</table>
+</div>
+
+<h2>八、实施路线</h2>
+<div class="card">
+<table>
+<tr><th>阶段</th><th>交付内容</th><th>说明</th></tr>
+<tr><td><b>V1（本次开工）</b></td><td>抓取层（已验证接口，含国际定价）+ 分析引擎 + 四页面网站 + 首版研判报告 + 发布脚本</td><td>本机 localhost 运行，可一键发布在线分享版</td></tr>
+<tr><td><b>V2</b></td><td>补齐缺口：WTI/Brent（代理配置）、SCFI（官网抓取）、动力煤现货（手动补录页面）；阈值告警</td><td>按 V1 使用反馈排期</td></tr>
+<tr><td><b>V3（可选）</b></td><td>发布上线（生成分享链接）+ 定时自动更新 + 板块内弹性个股清单</td><td>主人需要时再做</td></tr>
+</table>
+</div>
+
+<h2>九、开工前需要主人拍板的 3 个决策（已按主人反馈更新）</h2>
+<div class="card decision">
+<table>
+<tr><th>#</th><th>决策点</th><th>状态 / 建议</th></tr>
+<tr><td>1</td><td>网站形态 + 发布</td><td><span class="tag tag-green">已定</span> 双模式：本地 FastAPI 完整版 + 静态快照发布在线分享（见第六节）</td></tr>
+<tr><td>2</td><td>国际定价纳入有色板块（伦敦金/银、COMEX 铜金、LME 全系）</td><td><span class="tag tag-green">已定</span> 本轮已实测全部打通（伦敦金 20 年 / WTI 30 年），V1 直接做进去</td></tr>
+<tr><td>3</td><td>研判报告方式 / 数据更新频率 / 是否加黑色系板块</td><td>维持建议：量化评分+我每周定性研判混合；先手动更新命令；黑色系 V2 扩展</td></tr>
+</table>
+<p>主人对第 3 点无异议的话，我就按 V1 正式开工。</p>
+</div>
+
+<div class="disclaim">
+<b>免责声明</b>：以上内容基于公开数据和量化分析，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。<br>
+数据来源标注：AKShare 实测接口（新浪财经/东财宏观/申万宏源，截至 2026-09-18）；周期位置定性判断来自多源研报检索（开源证券等，2026-09 月度口径，非一手来源需核实原文）。
+</div>
+
+</div>
+
+<script>
+var chartRadar = echarts.init(document.getElementById('chart_radar'));
+chartRadar.setOption({
+  title: { text: '周期位置评分卡（形态示意，非真实数据）', left: 'center', textStyle: { fontSize: 14 } },
+  tooltip: {},
+  legend: { data: ['有色金属', '能源', '航运'], bottom: 0 },
+  radar: {
+    indicator: [
+      { name: '价格分位数', max: 100 },
+      { name: '动量', max: 100 },
+      { name: '库存紧张度', max: 100 },
+      { name: '期现结构', max: 100 },
+      { name: '综合景气', max: 100 }
+    ],
+    radius: '62%'
+  },
+  series: [{
+    type: 'radar',
+    data: [
+      { name: '有色金属', value: [72, 65, 85, 78, 74], areaStyle: { opacity: 0.15 } },
+      { name: '能源', value: [88, 92, 68, 82, 84], areaStyle: { opacity: 0.15 } },
+      { name: '航运', value: [85, 62, 70, 55, 71], areaStyle: { opacity: 0.15 } }
+    ]
+  }]
+});
+</script>
+</body>
+</html>

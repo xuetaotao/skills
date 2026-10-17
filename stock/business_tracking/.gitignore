@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 数据库（本地数据不入库）
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# 输出结果目录（运行时生成）
+output/*
+!output/.gitkeep
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/

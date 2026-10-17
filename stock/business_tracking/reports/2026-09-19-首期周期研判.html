@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>首期周期研判 · 2026-09-19</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root { --up:#d93025; --down:#0f8a43; --accent:#2563eb; --border:#e3e6ea; --text2:#5b6572; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"Segoe UI","Microsoft YaHei",sans-serif; font-size:14.5px; line-height:1.75; color:#1f2530; background:#f6f7f9; }
+  .wrap { max-width:980px; margin:0 auto; padding:24px 20px 60px; }
+  h1 { font-size:22px; margin-bottom:4px; }
+  .sub { color:var(--text2); font-size:13px; margin-bottom:14px; }
+  .quicknav { position:sticky; top:0; z-index:10; background:#fff; border:1px solid var(--border); border-radius:8px; padding:8px 14px; margin-bottom:18px; display:flex; gap:6px; flex-wrap:wrap; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .quicknav a { font-size:13px; color:var(--accent); text-decoration:none; padding:2px 10px; border-radius:6px; }
+  .quicknav a:hover { background:#eef1f5; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin-bottom:16px; }
+  h2 { font-size:17px; margin-bottom:10px; }
+  h3 { font-size:14.5px; color:var(--text2); margin:14px 0 6px; }
+  .verdict { border-left:4px solid var(--accent); }
+  .badge { display:inline-block; padding:1px 9px; border-radius:999px; color:#fff; font-size:12.5px; font-weight:600; margin:0 2px; }
+  .b-high { background:#d93025; } .b-mid { background:#d97706; } .b-low { background:#0f8a43; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin:10px 0; }
+  th,td { padding:6px 10px; border-bottom:1px solid var(--border); text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--text2); background:#fafbfc; }
+  .up { color:var(--up); font-weight:600; } .down { color:var(--down); font-weight:600; }
+  .chart { width:100%; height:340px; }
+  .term { border-bottom:1px dashed var(--accent); color:var(--accent); cursor:help; position:relative; }
+  .term:hover::after { content:attr(data-tip); position:absolute; left:0; top:130%; z-index:20; width:360px; background:#fffbeb; border:1px solid #eab308; border-radius:8px; padding:10px 12px; font-size:12.5px; color:#1f2530; box-shadow:0 4px 14px rgba(0,0,0,.15); white-space:normal; font-weight:400; }
+  .note { font-size:12.5px; color:var(--text2); margin-top:8px; }
+  .risk { border-left:4px solid #d97706; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>周期行业观测台 · 首期研判</h1>
+  <div class="sub">2026-09-19 发布 · 行情数据截至 2026-09-18 收盘（EIA 产量至 09-11）· 分析：小希 🌱</div>
+
+  <div class="quicknav">
+    <a href="#concl">总体结论</a><a href="#metals">有色</a><a href="#energy">能源</a><a href="#shipping">航运</a><a href="#risk">风险与策略</a><a href="#method">口径说明</a>
+  </div>
+
+  <!-- ================= 结论先行（铁律1） ================= -->
+  <div class="card verdict" id="concl">
+    <h2>一句话结论</h2>
+    <p><b>三大板块全部处于周期高位区（能源 92 分、航运 92 分、有色 82 分），"高位"没有分歧，分歧在"还能走多远"。</b>当前是典型的<b>供给约束驱动</b>行情：美国原油产量已顶到 10 年 99.8 分位仍压不住价格，LME 铝库存打到 10 年 0.6 分位的极低位，铜矿加工费深负——供给端的故事都讲到了极致。但高位区的行情性质从"上车"变成了"持有+盯信号"：<b>进攻性品种优先选基本面扎实（低库存+去库）的铝，警惕"价格新高但库存累积"的铜，原油和航运用事件（地缘、政策）驱动思维对待。</b></p>
+    <table>
+      <tr><th>板块</th><th>评分</th><th>阶段</th><th>核心依据（近10年分位）</th></tr>
+      <tr><td>能源</td><td><b>92</b></td><td><span class="badge b-high">高位强势</span></td><td>WTI 94.7%分位、上海SC 97.8%、美国产量 99.8%</td></tr>
+      <tr><td>航运</td><td><b>92</b></td><td><span class="badge b-high">高位强势</span></td><td>BDI 97.1%、BCI 98.0%、BDTI 100%（5年+328%）</td></tr>
+      <tr><td>有色</td><td><b>82</b></td><td><span class="badge b-high">高位强势</span></td><td>沪铜 99.9%、沪铝 97.5%，但铜库存累、铝库存去（关键分歧）</td></tr>
+    </table>
+    <p class="note">评分为量化口径（0.6×价格分位 + 0.4×动量分，详见文末），"高位强势"意味着价格处历史高位且仍在上涨——收益空间有限、波动风险放大，重点转向风险控制与结构选择。</p>
+  </div>
+
+  <!-- ================= 有色 ================= -->
+  <div class="card" id="metals">
+    <h2>有色：铝是真紧，铜要留一分清醒</h2>
+    <p><b>铝（基本面最扎实）：</b>沪铝 24,400 元/吨，10 年 97.5% 分位；而 LME 铝库存只有 28 万吨，处 10 年 <b>0.6% 分位（极低位）</b>且近 3 个月还在以 -28% 的速度去库。<span class="term" data-tip="库存下降叫去库，上升叫累库。库存像蓄水池：需求旺或供给断，水位下降；需求弱或供给过剩，水位上升。">去库</span>+高价组合说明上涨有真实供需支撑，是三个板块里"价量最匹配"的品种。铝是本轮有色里的首选持有方向，直到库存止跌回升。</p>
+    <p><b>铜（价格与库存背离，警惕）：</b>沪铜 109,620 元/吨，10 年 99.9% 分位——比过去 10 年 99.9% 的时间都贵。但同期 LME 铜库存 29.7 万吨，半年反而<b>累积了 +110%</b>。价格历史极值 + 库存大幅累积，说明现货并不紧张，支撑价格的是矿端叙事（<span class="term" data-tip="TC/RC 是铜矿付给冶炼厂的'代工费'。矿多时冶炼厂抢着接活、费用高；矿紧时费用暴跌甚至转负，是矿端供需的温度计。">TC 加工费深负</span>）、资金和远期预期。这种结构不是要立刻做空，而是它对"任何需求证伪"极其敏感——回调时跌幅会很深。持有者建议设好移动止损，新资金不追。</p>
+    <p><b>贵金属（动量衰减）：</b>伦敦金 4,343 美元/盎司（94.8% 分位）、伦敦银 65.3（94.4% 分位）。金价近 3 个月只 +3.2%，动量明显钝化；高位钝化 + 涨幅透支，加仓性价比不高，持有为主。</p>
+    <div id="chartCu" class="chart"></div>
+    <p class="note">图：沪铜主力近10年走势与分位通道（虚线为 10/25/50/75/90 分位）。当前价格紧贴 90% 分位线上方运行。</p>
+    <table>
+      <tr><th>指标</th><th>最新</th><th>近10年分位</th><th>3M动量</th><th>信号</th></tr>
+      <tr><td>沪铜</td><td>109,620 元/吨</td><td>99.9% 极高位</td><td class="up">+4.5%</td><td>价格极值+库存累，敏感</td></tr>
+      <tr><td>沪铝</td><td>24,400 元/吨</td><td>97.5% 极高位</td><td class="up">+1.8%</td><td>低库存去库支撑，扎实</td></tr>
+      <tr><td>沪锌</td><td>26,565 元/吨</td><td>98.0% 极高位</td><td class="up">+7.0%</td><td>跟随上行</td></tr>
+      <tr><td>LME铝库存</td><td>28.0 万吨</td><td>0.6% 极低位</td><td class="down">-28.0%</td><td>极低+去库（利多铝价）</td></tr>
+      <tr><td>LME铜库存</td><td>29.7 万吨</td><td>83.8% 高位</td><td class="up">-25.9%（3M去库）→半年+110%累积</td><td>累库，背离预警</td></tr>
+      <tr><td>伦敦金 / 银</td><td>4,343 / 65.3 美元</td><td>94.8% / 94.4%</td><td class="up">+3.2% / -0.7%</td><td>高位动量钝化</td></tr>
+    </table>
+    <p class="note">LME 库存数据源本身滞后约 2 个月（最新 07-17），趋势方向仍有效；沪铜 3M 动量为 +4.5%。</p>
+  </div>
+
+  <!-- ================= 能源 ================= -->
+  <div class="card" id="energy">
+    <h2>能源：地缘溢价的顶点结构——价格高位 × 供给已响应</h2>
+    <p><b>原油：</b>WTI 96.5 美元/桶（94.7% 分位，3M +27.8%）、布伦特 99.4（94.2% 分位）、上海 SC 728 元/桶（97.8% 分位，3M +43.2%）。本轮上涨由地缘冲突升级驱动，属于<span class="term" data-tip="因战争、制裁、运输通道受阻等突发事件产生的额外价格，事件缓和时溢价会快速回吐。">地缘溢价</span>而非供需缺口。关键证据：美国原油产量 1,394 万桶/日，已处 10 年 99.8% 分位的历史极值——高价格正在正常地刺激供给响应。历史上这种"价格高位 + 供给极值"的组合，价格维持高位靠的是事件持续发酵，一旦地缘缓和，溢价回吐速度会很快。持有多头敞口（或持有石油石化股）要盯事件、不恋战。</p>
+    <p><b>煤炭（内部分化）：</b>焦煤 1,487 元/吨（65.5% 分位，3M +17.0%）明显强于焦炭 1,952（37.6% 分位，3M -3.3%）——原料强、产品弱，钢厂利润被压缩，是黑色需求偏弱的映射。焦煤位置"中高位"且有动量，结构上好于焦炭。<b>动力煤现货基准价（生意社）983 元/吨，处近 1 年 98% 分位的极高位，逼近千元关口</b>——与 9 月中旬一度突破千元的行情一致，但 20 天 +12.3% 的斜率已开始放缓（9-18 较 9-14 高点 990 回落）。秦港 Q5500 历史档案（2021-06 至 2022-02，含上一轮"煤超疯"周期顶部区间）已入库作对照参照。SCFI 本期暂缺（待手动补录后下期补全）。</p>
+    <div id="chartWti" class="chart"></div>
+    <p class="note">图：WTI 近10年（实际数据 30 年，1996 起）走势与分位通道。</p>
+    <table>
+      <tr><th>指标</th><th>最新</th><th>近10年分位</th><th>3M动量</th><th>信号</th></tr>
+      <tr><td>WTI</td><td>96.48 美元/桶</td><td>94.7% 高位</td><td class="up">+27.8%</td><td>地缘驱动，事件敏感</td></tr>
+      <tr><td>布伦特</td><td>99.40 美元/桶</td><td>94.2% 高位</td><td class="up">+26.0%</td><td>同上</td></tr>
+      <tr><td>上海SC</td><td>728 元/桶</td><td>97.8% 极高位</td><td class="up">+43.2%</td><td>内盘溢价更高（运距+汇率）</td></tr>
+      <tr><td>美国原油产量</td><td>1,394.4 万桶/日</td><td>99.8% 极高位</td><td>—</td><td>供给已响应，压制长期中枢</td></tr>
+      <tr><td>焦煤 / 焦炭</td><td>1,487 / 1,952 元/吨</td><td>65.5% / 37.6%</td><td class="up">+17.0% / <span class="down">-3.3%</span></td><td>原料强产品弱，钢厂利润承压</td></tr>
+    </table>
+  </div>
+
+  <!-- ================= 航运 ================= -->
+  <div class="card" id="shipping">
+    <h2>航运：五年高位的两个引擎——铁矿热与地缘绕行</h2>
+    <p>BDI 3,370 点，10 年 97.1% 分位，近 3 个月 +23.8%。拆船型看：<b>海岬型 BCI 5,768（98.0% 分位，3M +39.0%）一枝独秀</b>，而巴拿马型 BPI（85.3%）和超灵便型 BSI（85.9%）明显温和——<span class="term" data-tip="海岬型是最大散货船（10万吨+），主要拉铁矿石；巴拿马型主要拉煤炭粮食。BCI 独强=铁矿贸易火热，BCI 弱而 BPI 稳=铁矿需求存疑。">大船独强</span>的信号指向铁矿石贸易是本轮主要引擎（钢厂补库 + 发运扰动），而非全面的散货需求复苏。</p>
+    <p><b>油运 BDTI 4,899 点是全站唯一的 100% 分位指标</b>（1M +65.7%，1Y +328%）——地缘冲突推高原油运距与保险成本，油轮租金爆炸式上涨。这类<span class="term" data-tip="因战争、制裁、运输通道受阻等突发事件产生的额外价格，事件缓和时溢价会快速回吐。">事件驱动型</span>运价的特点是"来时猛、去时快"，油运标的（中远海能、招商轮船类）当前属于高波动交易仓，不适合当长期持仓。</p>
+    <div id="chartBdi" class="chart"></div>
+    <p class="note">图：BDI 走势与分位通道（本站 BDI 历史自 1988 年起，38 年）。</p>
+    <table>
+      <tr><th>指标</th><th>最新</th><th>近10年分位</th><th>3M动量</th><th>信号</th></tr>
+      <tr><td>BDI</td><td>3,370 点</td><td>97.1% 高位</td><td class="up">+23.8%</td><td>高位，铁矿引擎</td></tr>
+      <tr><td>BCI 海岬型</td><td>5,768 点</td><td>98.0% 极高位</td><td class="up">+39.0%</td><td>铁矿贸易火热</td></tr>
+      <tr><td>BPI / BSI</td><td>2,251 / 1,767 点</td><td>85.3% / 85.9%</td><td class="up">+7.4% / +2.9%</td><td>温和，非全面复苏</td></tr>
+      <tr><td>BDTI 油运</td><td>4,899 点</td><td>100% 极值</td><td class="up">+134.2%</td><td>地缘事件驱动，来去都快</td></tr>
+    </table>
+  </div>
+
+  <!-- ================= 风险与策略 ================= -->
+  <div class="card risk" id="risk">
+    <h2>风险提示与操作思路（个人研究观点，非投资建议）</h2>
+    <p><b>共同逆风：</b>美联储 9 月重启加息，美元流动性收紧对一切高位商品都是估值压力；国内地产链需求仍是慢变量，等待政策端变化。</p>
+    <p><b>排序（进攻性从高到低）：</b>① 沪铝（低库存+去库，基本面最硬）→ ② 焦煤（中高位置+动量）→ ③ BDI/BCI（高位但铁矿引擎未熄火）→ ④ 原油（高位+供给已响应，事件思维）→ ⑤ 沪铜（极值+累库，只持有不追加）→ ⑥ 金银（动量钝化，配置仓不动）。</p>
+    <p><b>下次观察的信号清单：</b>LME 铜库存是否止升转降（铜的生死线）；LME 铝库存是否止跌（铝的退出信号）；EIA 周度产量是否突破 1,400 万桶/日；BCI 与 BPI 剪刀差是否收敛；美联储 10 月议息。</p>
+  </div>
+
+  <!-- ================= 口径 ================= -->
+  <div class="card" id="method">
+    <h2>口径与数据说明（可抽查核验）</h2>
+    <p>· 分位数：当前值在近 10 年全部交易日中的百分位排名（BDI 用更长历史窗口的性质同口径）。</p>
+    <p>· 评分 = 0.6 × 价格分位 + 0.4 × 动量分（3 个月涨跌幅，±20% 满量程）；板块评分取核心品种均值，不含黄金等货币属性品种。</p>
+    <p>· 数据源：新浪财经（期货/外盘）、东方财富、EIA、波罗的海交易所、申万，经 AKShare 聚合；关键数值已与独立行情源交叉核对（沪铜 109,620、BDI 3,370、WTI 96.48 等）。</p>
+    <p>· 未核实/缺口：SCFI 本期缺失（免费接口问题，待手动补录）；动力煤现货基准价历史仅约 1 年（生意社 2025-08 起发布），分位数为"近1年"口径；秦港 Q5500 为 2021-06~2022-02 历史档案（含上轮周期顶部参照），2022-03~2025-07 段无公开日度数据；LME 库存滞后约 2 个月；TC 加工费引用此前公开研报数值，未在本次接口验证范围内。</p>
+    <p>· 本报告为个人研究工具产出，不构成任何投资建议。</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+const API = "http://127.0.0.1:8321/api/series/";
+function draw(id, code, name) {
+  fetch(API + code).then(r => r.json()).then(d => {
+    fetch(API + code + "/stats").then(r => r.json()).then(st => {
+      const el = document.getElementById(id);
+      const c = echarts.init(el);
+      const ml = [];
+      for (const [k, lb] of [["p10","10%分位"],["p25","25%"],["p50","50%"],["p75","75%"],["p90","90%分位"]])
+        if (st.channel[k] != null) ml.push({ yAxis: st.channel[k], name: lb });
+      c.setOption({
+        title: { text: name, left: 10, top: 4, textStyle: { fontSize: 13 } },
+        tooltip: { trigger: "axis" },
+        grid: { left: 70, right: 30, top: 34, bottom: 46 },
+        dataZoom: [{ type: "inside" }, { type: "slider", height: 18, bottom: 6 }],
+        xAxis: { type: "category", data: d.points.map(p => p[0]), axisLabel: { fontSize: 10 } },
+        yAxis: { type: "value", scale: true, axisLabel: { fontSize: 10 } },
+        series: [{ type: "line", data: d.points.map(p => p[1]), showSymbol: false,
+          lineStyle: { width: 1.5, color: "#2563eb" },
+          markLine: { silent: true, symbol: "none", lineStyle: { type: "dashed", color: "#999" },
+            label: { formatter: "{b}", fontSize: 10 }, data: ml } }],
+      });
+    });
+  }).catch(() => {
+    document.getElementById(id).innerHTML =
+      '<div style="padding:60px;text-align:center;color:#5b6572">图表需要本地服务运行时查看（启动 start_server.bat 后刷新）</div>';
+  });
+}
+draw("chartCu", "SHFE_CU", "沪铜主力（近10年，虚线为分位通道）");
+draw("chartWti", "WTI", "WTI 原油（虚线为分位通道）");
+draw("chartBdi", "BDI", "BDI 干散货指数（虚线为分位通道）");
+</script>
+</body>
+</html>
