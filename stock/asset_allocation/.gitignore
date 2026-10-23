@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.pyc
+
+# 数据缓存（脚本运行时自动下载，可重新生成）
+data/
+
+# 中间结果（报告见 reports/）
+output/
