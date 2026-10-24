@@ -131,12 +131,13 @@
 const API = "http://127.0.0.1:8321/api/series/";
 function draw(id, code, name) {
   fetch(API + code).then(r => r.json()).then(d => {
-    fetch(API + code + "/stats").then(r => r.json()).then(st => {
+    {
+      const channel = (d.stats && d.stats.channel) || {};
       const el = document.getElementById(id);
       const c = echarts.init(el);
       const ml = [];
       for (const [k, lb] of [["p10","10%分位"],["p25","25%"],["p50","50%"],["p75","75%"],["p90","90%分位"]])
-        if (st.channel[k] != null) ml.push({ yAxis: st.channel[k], name: lb });
+        if (channel[k] != null) ml.push({ yAxis: channel[k], name: lb });
       c.setOption({
         title: { text: name, left: 10, top: 4, textStyle: { fontSize: 13 } },
         tooltip: { trigger: "axis" },
@@ -149,10 +150,10 @@ function draw(id, code, name) {
           markLine: { silent: true, symbol: "none", lineStyle: { type: "dashed", color: "#999" },
             label: { formatter: "{b}", fontSize: 10 }, data: ml } }],
       });
-    });
+    }
   }).catch(() => {
     document.getElementById(id).innerHTML =
-      '<div style="padding:60px;text-align:center;color:#5b6572">图表需要本地服务运行时查看（启动 start_server.bat 后刷新）</div>';
+      '<div style="padding:60px;text-align:center;color:#5b6572">图表需要本地服务运行时查看（启动 scripts/start_server.bat 后刷新）</div>';
   });
 }
 draw("chartCu", "SHFE_CU", "沪铜主力（近10年，虚线为分位通道）");
