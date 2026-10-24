@@ -1,9 +1,15 @@
 # Python
 __pycache__/
 *.pyc
+.venv/
 
-# 数据缓存（脚本运行时自动下载，可重新生成）
+# 数据库（本地数据不入库，首次启动自动下载）
 data/
 
-# 中间结果（报告见 reports/）
-output/
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/

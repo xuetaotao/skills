@@ -48,7 +48,8 @@ const shortDate = (d) => (d ? d.slice(5) : "—");
 
 const ROLE = { price: "价格", inventory: "库存", supply: "供给", equity: "股票指数", freight: "运价", macro: "综合指数" };
 const SOURCE = {
-  sina_main: "新浪 · 国内期货", sina_foreign: "新浪 · 外盘", lme_stock: "LME 库存", eia_crude: "EIA",
+  sina_main: "新浪 · 国内期货", sina_foreign: "新浪 · 外盘", westmetall: "Westmetall · LME 官方",
+  eia_crude: "AKShare · EIA", eia: "EIA 官网", sse: "上海航运交易所",
   cn_index: "AKShare 宏观指数", sw: "申万指数", shipping: "航运指数", ppi_vane: "生意社",
   ppi_qhd: "生意社（档案）", manual: "手动录入",
 };
@@ -155,7 +156,7 @@ function startPolling() {
   state.polling = setInterval(async () => {
     let s;
     try { s = await refreshStatus(); } catch { return; }
-    if (s.updating) return;
+    if (s.updating || !state.polling) return;  // 刷新刚结束时状态接口要重算分析，可能有两个请求同时在途
     clearInterval(state.polling);
     state.polling = null;
     if (s.empty) { renderInit(); return; }
@@ -802,7 +803,7 @@ async function renderHealth(token) {
     <div class="crumb"><a href="#/">总览</a> › 数据健康</div>
     <section class="stat-row">
       <div class="card stat"><small>正常更新</small><b>${h.fresh} / ${h.total}</b><span class="muted">不含历史档案</span></div>
-      <div class="card stat"><small>上次刷新</small><b>${esc(st.last_refresh || "—")}</b><span class="muted">每天首次启动时自动刷新</span></div>
+      <div class="card stat"><small>上次刷新</small><b>${esc(st.last_refresh || "—")}</b><span class="muted">每次启动服务时自动刷新</span></div>
       <div class="card stat"><small>上次刷新失败</small><b>${h.failed.length}</b><span class="muted">${esc(h.failed.slice(0, 2).join("；")) || "无"}</span></div>
     </section>
     <section class="card">
@@ -821,7 +822,7 @@ async function renderHealth(token) {
       <p><b>过期</b>：日度数据超过 10 天、周度数据超过 21 天没有新数据，视为过期，不参与温度、阶段和多数信号（个别库存信号会注明数据日期）。</p>
       <p><b>坏点</b>：相对上一个有效值偏离 40% 以上、且随后 3 个数据点内又回到原水平 10% 以内的点，判定为数据源的偶发错误（如 LME 铅、锌库存在 2015–2017 年多次串列）。分析时剔除，数据库保留原值。运价指数波动天然剧烈，不做剔除。</p>
       <p><b>历史长度</b>：历史不足 3 年的价格只参与动量，不参与温度；不足 10 年的分位按实际年限计算并标注。</p>
-      <p><b>手动补录</b>：没有免费接口的指标（如 SCFI）可以写入 <code>data/manual.csv</code>（列：code,date,value），下次刷新时导入。</p>
+      <p><b>手动补录</b>：SCFI 的官方接口只公布最近两期，每次刷新自动累积；更早的历史可以写入 <code>data/manual.csv</code>（列：code,date,value），下次刷新时一并导入。</p>
     </section>`;
   $$("#healthFilter button").forEach((btn) => (btn.onclick = () => {
     $$("#healthFilter button").forEach((x) => x.classList.toggle("on", x === btn));
@@ -888,7 +889,7 @@ function guideSteps() {
       title: "信号与数据可信度",
       body: `<p>信号分四级：<span class="lvtag lv-risk">风险</span> <span class="lvtag lv-watch">留意</span> <span class="lvtag lv-positive">积极</span> <span class="lvtag lv-info">提示</span>，点击可定位到相关指标或对照图。</p>
         <p>过期数据和停更档案只展示、不参与结论；数据源的偶发坏点会自动剔除。右上角显示数据日期和正常更新的指标数，点击可查看详情。</p>
-        <p>每天第一次启动会自动更新数据，也可以随时点「刷新数据」。带虚线的词悬停可以看解释。</p>`,
+        <p>每次启动服务会自动更新数据，也可以随时点「刷新数据」。带虚线的词悬停可以看解释。</p>`,
     },
   ];
 }

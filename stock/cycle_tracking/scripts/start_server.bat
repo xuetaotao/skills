@@ -1,6 +1,6 @@
 @echo off
 REM Start the Cycle Observatory local server (http://127.0.0.1:8321)
-REM Data is refreshed automatically in the background on the first start of each day.
+REM Data is refreshed automatically in the background every time the server starts.
 REM Set CYCLE_AUTO_REFRESH=0 to disable that.
 cd /d "%~dp0.."
 call :find_python

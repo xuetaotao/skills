@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 """FastAPI 服务：uvicorn backend.server:app --port 8321
 
-提供页面、数据 API 和后台刷新。启动时如果今天还没刷新过（或数据库为空），会在后台自动增量更新；
-设置环境变量 CYCLE_AUTO_REFRESH=0 可关闭。
+提供页面、数据 API 和后台刷新。每次启动都会在后台自动增量更新（数据库为空时全量下载）；
+设置环境变量 CYCLE_AUTO_REFRESH=0 可关闭（首次初始化除外）。
 """
 import os
 import threading
 import traceback
 from contextlib import asynccontextmanager
-from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -56,8 +55,7 @@ def _needs_auto_refresh():
         return "首次运行，正在初始化数据"
     if os.environ.get("CYCLE_AUTO_REFRESH", "1") == "0":
         return None
-    last = db.get_meta("last_refresh") or ""
-    return None if last.startswith(date.today().isoformat()) else "今天还没有刷新，正在自动更新"
+    return "启动时自动更新"
 
 
 @asynccontextmanager

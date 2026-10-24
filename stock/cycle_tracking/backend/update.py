@@ -38,7 +38,7 @@ def update_series(cfg, full=False):
     if not rows:
         note = "手动补录文件中没有该指标" if cfg["source"] == "manual" else "接口没有返回新数据"
         return dict(code=code, ok=True, new=0, last_date=last, note=note)
-    new = db.replace_points(code, rows, clear=full)
+    new = db.replace_points(code, rows, clear=full and not cfg["accumulate"])
     db.set_series_meta(cfg)
     note = f"剔除 {dropped} 个无效点" if dropped else ""
     return dict(code=code, ok=True, new=new, last_date=db.get_last_date(code), note=note)
@@ -58,8 +58,9 @@ def run_update(codes=None, full=False, progress=None):
         time.sleep(0.3)  # 对接口友好
     failed = [f"{r['code']}: {r['error']}" for r in detail if not r["ok"]]
     at = db.now_str()
-    db.set_meta("last_refresh", at)
-    db.set_meta("last_refresh_failed", json.dumps(failed, ensure_ascii=False))
+    if not codes:  # 只更新部分指标时不算一次完整刷新，“上次刷新”时间保持不变
+        db.set_meta("last_refresh", at)
+        db.set_meta("last_refresh_failed", json.dumps(failed, ensure_ascii=False))
     db.set_meta("data_version", datetime.now().isoformat(timespec="seconds"))
     if progress:
         progress(len(targets), len(targets), None)

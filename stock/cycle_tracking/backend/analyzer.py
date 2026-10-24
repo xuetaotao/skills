@@ -169,7 +169,9 @@ def series_stats(cfg, points, today, asof=None):
         outliers=[d for d, _ in outliers],
     )
     if cfg["role"] == "inventory":
-        st["inv_dir"] = "—" if m3 is None else "去库" if m3 < -10 else "累库" if m3 > 10 else "持平"
+        band = cfg["inv_band"]
+        st["inv_band"] = band
+        st["inv_dir"] = "—" if m3 is None else "去库" if m3 < -band else "累库" if m3 > band else "持平"
         st["inv_level"] = ("—" if q is None else "库存偏低（供应偏紧）" if q < 0.25
                            else "库存偏高（供应宽松）" if q > 0.75 else "库存中等")
         st["stage"] = None
@@ -232,16 +234,16 @@ def group_signals(g, gv, stats):
 
     inv = stats.get(g.get("inventory"))
     if inv and inv["momentum"]["3M"] is not None and gv["m3"] is not None:
-        ic, pm = inv["momentum"]["3M"], gv["m3"]
+        ic, pm, band = inv["momentum"]["3M"], gv["m3"], inv["inv_band"]
         note = _stale_note(inv)
         pair = f"近 3 个月{g['name']}价格 {signed(pm)}，{inv['name']} {signed(ic)}"
-        if pm > TREND_BAND and ic < -10:
+        if pm > TREND_BAND and ic < -band:
             out.append(_sig("positive", f"{g['name']}价涨库降", f"{pair}。价格上涨伴随去库，说明需求有支撑。{note}", [inv["code"]]))
-        elif pm > TREND_BAND and ic > 10:
+        elif pm > TREND_BAND and ic > band:
             out.append(_sig("risk", f"{g['name']}价涨库增", f"{pair}。价格上涨但库存在累积，上涨可能缺乏真实需求支撑。{note}", [inv["code"]]))
-        elif pm < -TREND_BAND and ic > 10:
+        elif pm < -TREND_BAND and ic > band:
             out.append(_sig("risk", f"{g['name']}价跌库增", f"{pair}。价格下跌同时累库，需求在走弱。{note}", [inv["code"]]))
-        elif pm < -TREND_BAND and ic < -10:
+        elif pm < -TREND_BAND and ic < -band:
             out.append(_sig("watch", f"{g['name']}价跌库降", f"{pair}。价格下跌但库存在减少，下跌动能可能在衰减。{note}", [inv["code"]]))
         if inv["q"] is not None and inv["q"] < 0.15:
             out.append(_sig("watch", f"{inv['name']}处于历史低位",
