@@ -36,9 +36,14 @@ const pctS = (v, d = 2) => (ok(v) ? signed(v * 100, d, "%") : DASH);
 const bpS = (v) => (ok(v) ? signed(v, 0, "bp") : DASH);
 const yieldS = (v) => (ok(v) ? `${num(v, 2)}%` : DASH);
 
-const GROUP_COLOR = { "A股": "#d64532", "港股": "#e0862f", "美股": "#2f6fdb", "日韩台": "#9c6ade", "其他海外": "#4f8f88", "大宗商品": "#b08a2e" };
+const GROUP_COLOR = { "A股": "#d64532", "港股": "#e0862f", "美股": "#2f6fdb", "日韩台": "#9c6ade", "其他海外": "#4f8f88", "大宗商品": "#b08a2e", "行业与个股": "#a0527a" };
 const groupDot = (g) => `<span class="dotc" style="background:${GROUP_COLOR[g] || "#999"}"></span>`;
 const statusTag = (s) => (s === "YES" ? `<span class="st yes">YES</span>` : s === "NO" ? `<span class="st no">NO</span>` : DASH);
+const SIGNALS = ["强力买入", "买入", "观望", "谨慎", "卖出"];
+const sigTag = (s) => (s ? `<span class="sig sig${SIGNALS.indexOf(s)}">${esc(s)}</span>` : "");
+const pctInt = (v) => (ok(v) ? `${Math.round(v * 100)}%` : "—");
+const valTip = (v) => (v ? `PE ${num(v.pe, 2)}（历史百分位 ${pctInt(v.pe_pct)}）· PB ${num(v.pb, 2)}（${pctInt(v.pb_pct)}）${v.ref ? ` · 参照${v.ref}` : ""} · 蛋卷基金 ${v.date}` : "");
+const valCell = (v) => (v && ok(v.pe_pct) ? `<span title="${esc(valTip(v))}"><b>${pctInt(v.pe_pct)}</b><div class="small muted">PE ${num(v.pe, 1)}${v.ref ? ` · ${esc(v.ref)}` : ""}</div></span>` : DASH);
 
 function toast(text, kind = "ok", ms = 4000) {
   const el = document.createElement("div");
@@ -204,7 +209,7 @@ function renderInit() {
   app.innerHTML = `
     <section class="init">
       <h1>正在初始化数据</h1>
-      <p>首次运行会下载 25 个指数和商品自 2015 年以来的日线，以及美元指数、中美国债收益率，大约半分钟。完成后页面会自动刷新。</p>
+      <p>首次运行会下载各个指数、商品和个股自 2015 年以来的日线，以及美元指数、中美国债收益率和估值，大约一分钟。完成后页面会自动刷新。</p>
       <div class="init-bar"><i style="width:${pct0}%"></i></div>
       <p class="muted">${s.done || 0} / ${s.total || "…"} ${s.current ? `· 正在获取：${esc(s.current)}` : ""}</p>
       ${s.last_error ? `<p class="warn-text">${esc(s.last_error)}</p>` : ""}
@@ -437,7 +442,8 @@ function insights(rows, groups) {
 /** 标的在清单里的顺序（按市场分组排列），用于“市场”列排序 */
 const instOrder = (code) => state.meta.instruments.findIndex((x) => x.code === code);
 
-function instCols(kind) {
+function instCols(kind, rows) {
+  const hasVal = rows.some((r) => r.val && ok(r.val.pe_pct));
   const cols = [
     { key: "rank", label: "#", num: true, fmt: (r) => `<span class="rank">${r.rank}</span>`, val: (r) => -r.rank },
     ...(kind === "stock" ? [{ key: "region", label: "市场", fmt: (r) => `${groupDot(r.group)}${esc(r.region)}`, val: (r) => -instOrder(r.code) }] : []),
@@ -447,8 +453,9 @@ function instCols(kind) {
     { key: "wtd", label: termLabel("本周", "本周涨跌"), num: true, fmt: (r) => (r.idle_week ? `<span class="muted">休市</span>` : pctS(r.wtd)), val: (r) => r.wtd },
     { key: "m1", label: "近1月", num: true, fmt: (r) => pctS(r.m1), val: (r) => r.m1 },
     { key: "ma", label: termLabel("临界值"), num: true, fmt: (r) => num(r.ma), val: (r) => r.ma },
-    { key: "status", label: termLabel("状态"), fmt: (r) => statusTag(r.status), val: (r) => (r.status === "YES" ? 1 : 0) },
+    { key: "status", label: `${termLabel("状态")} / ${termLabel("信号")}`, fmt: (r) => `${statusTag(r.status)} ${sigTag(r.signal)}`, val: (r) => (r.status === "YES" ? 1 : 0) },
     { key: "dev", label: termLabel("偏离度"), fmt: (r) => devBar(r.dev), val: (r) => r.dev },
+    ...(hasVal ? [{ key: "pe", label: termLabel("PE 百分位"), num: true, fmt: (r) => valCell(r.val), val: (r) => r.val?.pe_pct, title: "市盈率在自身历史中的百分位，越低越便宜；悬停看 PE、PB 和日期" }] : []),
     { key: "spark", label: "近 60 日偏离度", fmt: (r) => spark(r.spark) },
     { key: "slope", label: termLabel("均线方向"), num: true, fmt: (r) => (ok(r.ma_slope) ? `${r.ma_slope > 0.002 ? "↗" : r.ma_slope < -0.002 ? "↘" : "→"} ${pctS(r.ma_slope, 1)}` : DASH), val: (r) => r.ma_slope, title: "20 日均线最近 5 个交易日的变化" },
     { key: "days", label: termLabel("状态持续"), num: true, fmt: (r) => `${r.days} 天<div class="small muted">自 ${esc(r.since)}</div>`, val: (r) => r.days },
@@ -518,6 +525,10 @@ async function renderOverview(token, asof) {
       <div class="card-head"><h2>大宗商品</h2></div>
       <div id="tCom"></div>
     </section>
+    <section class="card" id="cardWatch">
+      <div class="card-head"><h2>${termLabel("行业与个股")}</h2><span class="small muted">单独排名，不计入上面的 YES 统计；个股按前复权价格计算</span></div>
+      <div id="tWatch"></div>
+    </section>
     <section class="card">
       <div class="card-head"><h2>美元指数与国债收益率</h2><a class="go" href="#/macro">看走势 →</a></div>
       ${macroCard(d.macro)}
@@ -527,11 +538,14 @@ async function renderOverview(token, asof) {
     const rows = visible(d.rows, d.simple);
     const stocks = rankRows(rows.filter((r) => r.kind === "stock"));
     const coms = rankRows(rows.filter((r) => r.kind === "commodity"));
+    const watch = rankRows(rows.filter((r) => r.kind === "watch"));
     drawSummary(d, stocks, coms);
     $("#insights").innerHTML = insights(rows, state.meta.groups);
     const rowClass = (r) => (r.changed_today || r.changed_week ? "hl" : "");
-    sortableTable($("#tStock"), instCols("stock"), stocks, { onRow: openInst, rowClass, sortState: (state.sorts.stock ??= {}), tblClass: "inst" });
-    sortableTable($("#tCom"), instCols("commodity"), coms, { onRow: openInst, rowClass, sortState: (state.sorts.com ??= {}), tblClass: "inst" });
+    sortableTable($("#tStock"), instCols("stock", stocks), stocks, { onRow: openInst, rowClass, sortState: (state.sorts.stock ??= {}), tblClass: "inst" });
+    sortableTable($("#tCom"), instCols("commodity", coms), coms, { onRow: openInst, rowClass, sortState: (state.sorts.com ??= {}), tblClass: "inst" });
+    $("#cardWatch").hidden = !watch.length;
+    if (watch.length) sortableTable($("#tWatch"), instCols("watch", watch), watch, { onRow: openInst, rowClass, sortState: (state.sorts.watch ??= {}), tblClass: "inst" });
     const ver = prefs.version;
     $("#btnShot").href = `/report/${ver}${asof ? `?asof=${asof}` : ""}`;
   };
@@ -696,7 +710,7 @@ async function renderInst(token, code) {
       <div class="head-row">
         <div>
           <div class="eyebrow">${groupDot(r.group)}${esc(r.region)} · ${esc(r.code)} · 数据截至 ${esc(r.date)}</div>
-          <h1>${esc(r.name)} ${statusTag(r.status)} ${badges(r)}</h1>
+          <h1>${esc(r.name)} ${statusTag(r.status)} ${sigTag(r.signal)} ${badges(r)}</h1>
           <p class="sub">${r.status === "YES" ? "收盘价在临界值上方" : "收盘价在临界值下方"}，已持续 <b>${r.days}</b> 个交易日（自 ${esc(r.since)}），本轮涨跌 ${pctS(r.run_ret)}。</p>
         </div>
         <div class="kv-row">
@@ -705,6 +719,8 @@ async function renderInst(token, code) {
           <div class="kv"><small>${termLabel("偏离度")}</small><b>${pctS(r.dev)}</b><span>上周末 ${pctS(r.prev_dev)}</span></div>
           <div class="kv"><small>本周</small><b>${r.idle_week ? "休市" : pctS(r.wtd)}</b><span>近1月 ${pctS(r.m1)}</span></div>
           <div class="kv"><small>今年以来</small><b>${pctS(r.ytd)}</b><span>&nbsp;</span></div>
+          ${r.val && ok(r.val.pe_pct) ? `<div class="kv" title="${esc(valTip(r.val))}"><small>${termLabel("PE 百分位")}</small><b>${pctInt(r.val.pe_pct)}</b>
+            <span>PE ${num(r.val.pe, 1)} · PB 百分位 ${pctInt(r.val.pb_pct)}${r.val.ref ? ` · 参照${esc(r.val.ref)}` : ""}</span></div>` : ""}
         </div>
       </div>
     </section>
@@ -999,8 +1015,8 @@ async function renderHealth(token) {
       <div class="notice" style="margin-top:14px">获取失败时保留数据库里的旧数据，表格和 AI 素材会标出“数据截至”；命令行更新会以失败状态退出，提醒 AI 不要把旧数据当作最新行情。
         单日涨跌超过 ${Math.round(h.thresholds.big * 100)}% 的日子列在下面，多数是真实行情，偶尔是数据源的问题，可到行情软件核对。</div>
     </section>
-    <section class="card"><div class="card-head"><h2>指数与商品</h2><span class="small muted">落后天数 = 整体数据日期 − 该标的最新日期（自然日）</span></div><div id="hInst"></div></section>
-    <section class="card"><div class="card-head"><h2>美元指数与国债收益率</h2></div><div id="hMacro"></div></section>`;
+    <section class="card"><div class="card-head"><h2>指数、商品与个股</h2><span class="small muted">落后天数 = 整体数据日期 − 该标的最新日期（自然日）</span></div><div id="hInst"></div></section>
+    <section class="card"><div class="card-head"><h2>美元指数、国债收益率与估值</h2><span class="small muted">估值只是参考，获取失败不影响命令行更新的退出码</span></div><div id="hMacro"></div></section>`;
   sortableTable($("#hInst"), [
     { key: "name", label: "名称", fmt: (x) => `${groupDot(x.group)}<b>${esc(x.name)}</b> <small class="muted">${esc(x.key)}</small>`, val: (x) => x.name },
     { key: "source", label: "来源", fmt: (x) => esc(x.source || "—"), val: (x) => x.source },
@@ -1047,8 +1063,8 @@ function guideSteps() {
   return [
     {
       title: "这是什么",
-      body: `<p>这是<b>鱼盆模型周度复盘</b>的本地网站：全球 25 个股指和商品，每天按<b>收盘价在 20 日均线上方还是下方</b>判断 YES / NO，按偏离度排出强弱。</p>
-        <p>数据来自新浪、中证、台湾证交所和东方财富，<b>每次启动服务都会自动更新</b>，并重写 <code>outputs/latest_review_simple.md</code> 供 AI 写周报。</p>`,
+      body: `<p>这是<b>鱼盆模型周度复盘</b>的本地网站：全球主要股指、大宗商品，以及几个 A 股行业指数和个股，每天按<b>收盘价在 20 日均线上方还是下方</b>判断 YES / NO，按偏离度排出强弱，并分成 5 档信号。</p>
+        <p>数据来自新浪、中证、国证、台湾证交所、东方财富和腾讯，估值来自蛋卷基金。<b>每次启动服务都会自动更新</b>，并重写 <code>outputs/latest_review_simple.md</code> 供 AI 写周报。</p>`,
     },
     {
       title: "总览：本周发生了什么",

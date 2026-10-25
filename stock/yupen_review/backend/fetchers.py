@@ -2,7 +2,7 @@
 """数据源
 
 每个市场按顺序尝试多个来源，返回 (来源名, [(日期, 收盘价)])，日期升序。全部失败时抛出最后一个错误。
-数据源与 yupen 鱼盆模型保持一致；美元指数和中美国债收益率沿用原 review 模块的来源。
+个股用前复权价格，分红送转不会造成假的跌破。
 """
 import logging
 import time
@@ -26,7 +26,7 @@ def _rows(df):
     """DataFrame → [(YYYY-MM-DD, close)]，去掉空值与重复日期，只保留 HISTORY_START 之后。"""
     if df is None or len(df) == 0:
         return []
-    for a, b in (("日期", "date"), ("收盘", "close"), ("最新价", "close"), ("latest", "close")):
+    for a, b in (("日期", "date"), ("收盘", "close"), ("收盘价", "close"), ("最新价", "close"), ("latest", "close")):
         if a in df.columns and b not in df.columns:
             df = df.rename(columns={a: b})
     if "date" not in df.columns or "close" not in df.columns:
@@ -66,6 +66,34 @@ def _a_index(code, market):
         ("中证指数", lambda: _rows(ak.stock_zh_index_hist_csindex(symbol=code, start_date=start, end_date=end))),
         ("东方财富", lambda: _rows(ak.index_zh_a_hist(symbol=code, period="daily", start_date=start, end_date=end))),
         ("腾讯财经", lambda: _rows(ak.stock_zh_index_daily_tx(symbol=f"{market}{code}"))),
+    ])
+
+
+def _cni_index(code):
+    """国证指数（如自由现金流 980092）：国证官网有回溯到 2015 年的历史，新浪、腾讯只有发布后的数据。"""
+    ak = _ak()
+    return _try([
+        ("国证指数", lambda: _rows(ak.index_hist_cni(symbol=code, start_date=HISTORY_START.replace("-", ""),
+                                                  end_date=datetime.now().strftime("%Y%m%d")))),
+        ("新浪财经", lambda: _rows(ak.stock_zh_index_daily(symbol=f"sz{code}"))),
+        ("腾讯财经", lambda: _rows(ak.stock_zh_index_daily_tx(symbol=f"sz{code}"))),
+    ])
+
+
+def _csi_index(code):
+    """中证指数的非数字代码（如红利低波 H30269），新浪、腾讯不收录。"""
+    ak = _ak()
+    return _try([("中证指数", lambda: _rows(ak.stock_zh_index_hist_csindex(
+        symbol=code, start_date=HISTORY_START.replace("-", ""), end_date=datetime.now().strftime("%Y%m%d"))))])
+
+
+def _a_stock(code):
+    ak = _ak()
+    symbol = ("sh" if code.startswith("6") else "sz") + code
+    return _try([
+        ("新浪财经（前复权）", lambda: _rows(ak.stock_zh_a_daily(symbol=symbol, adjust="qfq"))),
+        ("腾讯财经（前复权）", lambda: _rows(ak.stock_zh_a_hist_tx(symbol=symbol, start_date=HISTORY_START.replace("-", ""),
+                                                            end_date="20500101", adjust="qfq"))),
     ])
 
 
@@ -147,6 +175,12 @@ def fetch_instrument(inst):
     m, code = inst["market"], inst["code"]
     if m in ("sh", "sz"):
         return _a_index(code, m)
+    if m == "cni":
+        return _cni_index(code)
+    if m == "csi":
+        return _csi_index(code)
+    if m == "stock":
+        return _a_stock(code)
     if m == "us":
         return _us_index(code)
     if m == "tw":
@@ -215,3 +249,23 @@ def fetch_bonds(start):
     if not any(out.values()):
         raise ValueError("中美国债收益率返回空数据")
     return "东方财富（akshare bond_zh_us_rate）", out
+
+
+# ---------------- 估值（蛋卷基金） ---------------- #
+
+def fetch_valuation():
+    """当天的 PE / PB 及其历史百分位（0–1）。接口只给最新一天，历史靠每次刷新累积。"""
+    def get():
+        r = requests.get("https://danjuanapp.com/djapi/index_eva/dj", headers=UA, timeout=20)
+        r.raise_for_status()
+        out = {}
+        for it in r.json()["data"]["items"]:
+            ts = it.get("ts")
+            if not it.get("index_code") or not ts:
+                continue
+            out[it["index_code"]] = dict(
+                date=datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d"), name=it.get("name"),
+                pe=it.get("pe") or None, pe_pct=it.get("pe_percentile"), pb=it.get("pb") or None,
+                pb_pct=it.get("pb_percentile"))
+        return out
+    return _try([("蛋卷基金", get)], retries=3)

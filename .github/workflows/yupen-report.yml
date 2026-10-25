@@ -19,47 +19,49 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: yupen
+        working-directory: stock/yupen_review
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       TZ: Asia/Shanghai
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: yupen/requirements.txt
-      
+          cache-dependency-path: stock/yupen_review/requirements.txt
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
+      # 个别标的取数失败时退出码为 1，报告顶部会列出失败项，仍然发布
       - name: Generate report
         run: |
-          python src/main.py
-      
+          python -m backend.update || echo "::warning::部分数据获取失败，报告顶部列出了失败项"
+
       - name: Prepare pages artifact
         run: |
           mkdir -p _pages
-          cp outputs/index.html _pages/
-          cp outputs/latest_report.html _pages/
-          cp outputs/latest_report.json _pages/
-          cp outputs/latest_report.md _pages/
-      
+          cp outputs/latest_review.html _pages/index.html
+          cp outputs/latest_review.html _pages/latest_report.html
+          cp outputs/latest_review.md _pages/latest_report.md
+          cp outputs/latest_review_simple.html _pages/simple.html
+          cp outputs/latest_review_simple.md _pages/simple.md
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-      
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'yupen/_pages'
-      
+          path: 'stock/yupen_review/_pages'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

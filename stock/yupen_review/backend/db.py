@@ -3,6 +3,7 @@
 
 - prices：各指数、商品的日收盘价（增量写入，取数失败时保留旧数据）
 - macro：美元指数与中美国债收益率日序列
+- valuation：蛋卷基金每天的 PE / PB 及历史百分位（接口只有当天，每次刷新累积一条）
 - sources：每个标的 / 宏观序列最近一次取数的来源、条数、起止日期、错误
 - meta：刷新时间、数据版本、精简版设置等
 """
@@ -18,6 +19,8 @@ DB_PATH = os.path.join(BASE, "data", "review.db")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS prices(code TEXT, date TEXT, close REAL, PRIMARY KEY(code, date));
 CREATE TABLE IF NOT EXISTS macro(series TEXT, date TEXT, value REAL, PRIMARY KEY(series, date));
+CREATE TABLE IF NOT EXISTS valuation(
+  code TEXT, date TEXT, pe REAL, pe_pct REAL, pb REAL, pb_pct REAL, PRIMARY KEY(code, date));
 CREATE TABLE IF NOT EXISTS sources(
   key TEXT PRIMARY KEY, source TEXT, fetched INTEGER, first TEXT, last TEXT, ok INTEGER, error TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
@@ -90,6 +93,21 @@ def load_macro():
     with conn() as c:
         for s, d, v in c.execute("SELECT series, date, value FROM macro ORDER BY series, date"):
             out.setdefault(s, []).append((d, v))
+    return out
+
+
+def save_valuation(rows):
+    """rows：[(代码, 日期, pe, pe_pct, pb, pb_pct)]"""
+    with conn() as c:
+        c.executemany("INSERT OR REPLACE INTO valuation VALUES(?, ?, ?, ?, ?, ?)", rows)
+
+
+def load_valuation():
+    """{代码: [(日期, {pe, pe_pct, pb, pb_pct})]}，按日期升序。"""
+    out = {}
+    with conn() as c:
+        for code, d, pe, pep, pb, pbp in c.execute("SELECT * FROM valuation ORDER BY code, date"):
+            out.setdefault(code, []).append((d, dict(pe=pe, pe_pct=pep, pb=pb, pb_pct=pbp)))
     return out
 
 

@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
 """行情复盘汇总：截图版 HTML 与 AI 素材 Markdown
 
-HTML 风格沿用原 review 模块（周报截图用），Markdown 在原有三张表之后追加“本周变化”和“近几周偏离度”，
-供 AI 写周报时做增量对比，不必再翻历史文件。
+HTML 用于周报截图，也是 GitHub Pages 上的日报；Markdown 在表格之后追加“本周变化”，供 AI 写周报。
+完整版额外带“信号”和“PE 百分位”两列，精简版保持周报截图的样子。
 """
 import os
 from datetime import datetime
 from typing import Any, Callable, Dict, List, NamedTuple, Optional
 
 from . import analytics
-from .config import INST
+from .config import INST, SIGNALS
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUTS = os.path.join(BASE, "outputs")
+SOURCES = "新浪财经 / 中证指数 / 国证指数 / 台湾证交所 / 东方财富 / 腾讯财经 / 蛋卷基金 / akshare"
 
-# 内联国旗 SVG（取自 yupen 报告，解决部分系统不渲染国旗 emoji 的问题）
+# 内联国旗 SVG，解决部分系统不渲染国旗 emoji 的问题
 FLAG_SVGS: Dict[str, str] = {
     "cn": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#DE2910"/><polygon points="5,2 6.1,5.5 3,3.3 7,3.3 3.9,5.5" fill="#FFDE00"/><polygon points="10,1 10.4,2.2 9.1,1.5 10.9,1.5 9.6,2.2" fill="#FFDE00"/><polygon points="12,3 12.4,4.2 11.1,3.5 12.9,3.5 11.6,4.2" fill="#FFDE00"/><polygon points="12,6 12.4,7.2 11.1,6.5 12.9,6.5 11.6,7.2" fill="#FFDE00"/><polygon points="10,8 10.4,9.2 9.1,8.5 10.9,8.5 9.6,9.2" fill="#FFDE00"/></svg>',
     "us": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFF"/><rect y="0" width="30" height="1.54" fill="#B22234"/><rect y="3.08" width="30" height="1.54" fill="#B22234"/><rect y="6.16" width="30" height="1.54" fill="#B22234"/><rect y="9.24" width="30" height="1.54" fill="#B22234"/><rect y="15.38" width="30" height="1.54" fill="#B22234"/><rect y="18.46" width="30" height="1.54" fill="#B22234"/><rect y="12.3" width="30" height="1.54" fill="#B22234"/><rect width="12" height="10.8" fill="#3C3B6E"/></svg>',
@@ -118,8 +119,59 @@ COL_STATUS = Column("状态", _status_html, _status_md)
 COL_DEVIATION = Column("偏离度", _deviation_html, lambda r: r.get("deviation_str", "N/A"))
 COL_CHANGE_DATE = Column("状态转变时间", lambda r: r.get("status_change_date", "") or "--", lambda r: r.get("status_change_date", "") or "--")
 
+SIGNAL_CLASS = {label: f"sig{i}" for i, (_t, label) in enumerate(SIGNALS)}
+
+
+def _signal_html(record: Dict[str, Any]) -> str:
+    s = record.get("signal")
+    return f'<span class="signal {SIGNAL_CLASS.get(s, "")}">{s}</span>' if s else "--"
+
+
+def _pe_text(record: Dict[str, Any]) -> str:
+    v = record.get("val")
+    if not v or not isinstance(v.get("pe_pct"), (int, float)):
+        return "--"
+    return f'{v["pe_pct"] * 100:.0f}%'
+
+
+def _pe_html(record: Dict[str, Any]) -> str:
+    v = record.get("val")
+    if not v or not isinstance(v.get("pe_pct"), (int, float)):
+        return '<span class="neutral">--</span>'
+    ref = f' <span class="pe-ref">参照{v["ref"]}</span>' if v.get("ref") else ""
+    pe = f'PE {v["pe"]:.1f}' if isinstance(v.get("pe"), (int, float)) else ""
+    return f'<b>{_pe_text(record)}</b> <span class="pe-sub">{pe}</span>{ref}'
+
+
+def _pe_md(record: Dict[str, Any]) -> str:
+    v = record.get("val")
+    text = _pe_text(record)
+    return f'{text}（参照{v["ref"]}）' if text != "--" and v.get("ref") else text
+
+
+COL_SIGNAL = Column("信号", _signal_html, lambda r: r.get("signal") or "--")
+COL_PE = Column("PE 百分位", _pe_html, _pe_md)
+
 STOCK_COLUMNS = [COL_RANK, COL_MARKET, COL_NAME, COL_CODE, COL_PRICE, COL_CHANGE, COL_MA, COL_STATUS, COL_DEVIATION, COL_CHANGE_DATE]
 COMMODITY_COLUMNS = [COL_RANK, COL_NAME, COL_CODE, COL_PRICE, COL_CHANGE, COL_MA, COL_STATUS, COL_DEVIATION, COL_CHANGE_DATE]
+
+
+def _columns(base: List[Column], full: bool, pe: bool) -> List[Column]:
+    """完整版在偏离度后面插入信号列（有估值的表再加 PE 百分位）。"""
+    if not full:
+        return base
+    i = base.index(COL_DEVIATION) + 1
+    return base[:i] + [COL_SIGNAL] + ([COL_PE] if pe else []) + base[i:]
+
+
+class Section(NamedTuple):
+    title: str
+    columns: List[Column]
+    records: List[Dict[str, Any]]
+    note: str = ""
+
+
+SIGNAL_NOTE = "信号按偏离度机械分档：≥3% 强力买入，1%~3% 买入，0~1% 观望，−1%~0 谨慎，< −1% 卖出；PE 百分位来自蛋卷基金，越低表示估值越便宜。仅供参考，不构成投资建议。"
 
 
 def fmt_yield(value: Any) -> str:
@@ -197,12 +249,15 @@ def _macro_html(usd: Optional[Dict[str, Any]], bonds: Optional[Dict[str, Any]]) 
     return f'<div class="card"><h2>🏦 国债收益率和美元指数</h2><div class="macro-grid">{"".join(blocks)}</div></div>'
 
 
-def render_html(stocks: List[Dict[str, Any]], commodities: List[Dict[str, Any]],
-                data_date: str, generated_at: str, title_suffix: str = "",
-                usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None) -> str:
-    stock_table = _html_table(STOCK_COLUMNS, stocks)
-    commodity_table = _html_table(COMMODITY_COLUMNS, commodities)
+def render_html(sections: List[Section], data_date: str, generated_at: str, title_suffix: str = "",
+                usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None, footnote: str = "",
+                notice: str = "") -> str:
+    cards = "".join(
+        f'<div class="card"><h2>{s.title}</h2>{f"<p class=note>{s.note}</p>" if s.note else ""}'
+        f'<div class="table-scroll">{_html_table(s.columns, s.records)}</div></div>'
+        for s in sections)
     macro_section = _macro_html(usd, bonds)
+    foot = f'<div class="footnote">{footnote}</div>' if footnote else ""
     title = f"🌍 全球行情复盘汇总{title_suffix}"
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -263,6 +318,16 @@ code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13
 .usd-change.positive::before {{ content: "▲ "; }}
 .usd-change.negative::before {{ content: "▼ "; }}
 .usd-cap {{ font-size: 12px; color: #9a96b0; }}
+.notice {{ margin-top: 16px; padding: 12px 18px; border-radius: 12px; background: #fff8e1; color: #8a5a00; font-size: 14px; }}
+.card .note {{ margin: -6px 0 6px; font-size: 13px; color: #888; }}
+.signal {{ padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 600; }}
+.sig0 {{ background: #c62828; color: #fff; }}
+.sig1 {{ background: #ffebee; color: #c62828; }}
+.sig2 {{ background: #fff8e1; color: #b26a00; }}
+.sig3 {{ background: #e8f5e9; color: #2e7d32; }}
+.sig4 {{ background: #2e7d32; color: #fff; }}
+.pe-sub, .pe-ref {{ font-size: 12px; color: #999; }}
+.footnote {{ margin-top: 18px; font-size: 13px; color: #777; line-height: 1.7; }}
 .footer {{ margin-top: 22px; text-align: center; color: #999; font-size: 12px; }}
 </style>
 </head>
@@ -272,16 +337,11 @@ code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13
     <h1>{title}</h1>
     <div class="meta">数据日期：{data_date} &nbsp;·&nbsp; 生成时间：{generated_at} &nbsp;·&nbsp; 排序：按偏离度由强到弱</div>
   </div>
-  <div class="card">
-    <h2>📊 全球股市</h2>
-    <div class="table-scroll">{stock_table}</div>
-  </div>
-  <div class="card">
-    <h2>🏅 大宗商品</h2>
-    <div class="table-scroll">{commodity_table}</div>
-  </div>
+  {notice}
+  {cards}
   {macro_section}
-  <div class="footer">数据来源：新浪财经 / 中证指数 / 台湾证交所 / 东方财富 / akshare · 鱼盆信号按 20 日均线计算 · 本汇总仅供参考，不构成投资建议</div>
+  {foot}
+  <div class="footer">数据来源：{SOURCES} · 鱼盆信号按 20 日均线计算 · 本汇总仅供参考，不构成投资建议</div>
 </div>
 </body>
 </html>"""
@@ -317,22 +377,21 @@ def _macro_md(usd: Optional[Dict[str, Any]], bonds: Optional[Dict[str, Any]]) ->
     return "\n".join(parts) + "\n"
 
 
-def render_markdown(stocks: List[Dict[str, Any]], commodities: List[Dict[str, Any]],
-                    data_date: str, generated_at: str, title_suffix: str = "",
+def render_markdown(sections: List[Section], data_date: str, generated_at: str, title_suffix: str = "",
                     usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None,
-                    notice: str = "", extra: str = "") -> str:
+                    notice: str = "", extra: str = "", footnote: str = "") -> str:
+    tables = "".join(f"## {s.title}\n\n{f'> {s.note}' + chr(10) + chr(10) if s.note else ''}{_md_table(s.columns, s.records)}\n\n"
+                     for s in sections)
     return (
         f"# 🌍 全球行情复盘汇总{title_suffix}\n\n"
         f"> 数据日期：{data_date} · 生成时间：{generated_at} · 排序：按偏离度由强到弱\n\n"
         f"{notice}"
-        "## 📊 全球股市\n\n"
-        f"{_md_table(STOCK_COLUMNS, stocks)}\n\n"
-        "## 🏅 大宗商品\n\n"
-        f"{_md_table(COMMODITY_COLUMNS, commodities)}\n\n"
+        f"{tables}"
         f"{_macro_md(usd, bonds)}"
         f"{extra}"
+        f"{footnote + chr(10) + chr(10) if footnote else ''}"
         "---\n\n"
-        "数据来源：新浪财经 / 中证指数 / 台湾证交所 / 东方财富 / akshare · 鱼盆信号由本模块按 20 日均线计算 · 本汇总仅供参考，不构成投资建议\n"
+        f"数据来源：{SOURCES} · 鱼盆信号由本模块按 20 日均线计算 · 本汇总仅供参考，不构成投资建议\n"
     )
 
 
@@ -348,7 +407,7 @@ def _record(r: Dict[str, Any]) -> Dict[str, Any]:
         ma20=r.get("ma"), status=r.get("status"), deviation=r.get("dev"),
         deviation_str=f"{r['dev'] * 100:.2f}%" if isinstance(r.get("dev"), (int, float)) else "N/A",
         status_change_date=r.get("since"), changed_today=r.get("changed_today"), changed_week=r.get("changed_week"),
-        stale=r.get("stale"), status_date=r.get("date"),
+        stale=r.get("stale"), status_date=r.get("date"), signal=r.get("signal"), val=r.get("val"),
     )
 
 
@@ -380,14 +439,14 @@ def _macro_parts(asof):
     return usd, bonds, m
 
 
-def _notice(sel: List[Dict[str, Any]], missing: List[str]) -> str:
+def _notice(sel: List[Dict[str, Any]], missing: List[str]) -> List[str]:
     stale = [f"{r['name']}（{r['date']}）" for r in sel if r.get("stale")]
     lines = []
     if stale:
-        lines.append(f"> ⚠️ 以下标的数据没有更新到最新，可能是休市或取数失败：{'、'.join(stale)}")
+        lines.append(f"⚠️ 以下标的数据没有更新到最新，可能是休市或取数失败：{'、'.join(stale)}")
     if missing:
-        lines.append(f"> ⚠️ 本次刷新失败：{'、'.join(missing)}；表中为数据库里的旧数据")
-    return "\n".join(lines) + "\n\n" if lines else ""
+        lines.append(f"⚠️ 本次刷新失败：{'、'.join(missing)}；表中为数据库里的旧数据，没有旧数据的标的不显示")
+    return lines
 
 
 def _bp(v):
@@ -436,18 +495,28 @@ def build(version: str = "simple", fmt: str = "md", asof: Optional[str] = None, 
     data, sel = pick(version, asof)
     if not data:
         return None
-    stocks = _ranked([r for r in sel if r["kind"] == "stock"])
-    commodities = _ranked([r for r in sel if r["kind"] == "commodity"])
+    full = version == "full"
+    sections = [
+        Section("📊 全球股市", _columns(STOCK_COLUMNS, full, True), _ranked([r for r in sel if r["kind"] == "stock"])),
+        Section("🏅 大宗商品", _columns(COMMODITY_COLUMNS, full, False), _ranked([r for r in sel if r["kind"] == "commodity"])),
+    ]
+    watch = _ranked([r for r in sel if r["kind"] == "watch"])
+    if watch:
+        sections.append(Section("🎯 行业与个股", _columns(COMMODITY_COLUMNS, full, True), watch,
+                                "单独排名，不计入上面的统计；个股按前复权价格计算。"))
     usd, bonds, m = _macro_parts(asof)
     suffix = "（精简版）" if version == "simple" else ""
     if asof:
         suffix += f" · 回看 {data['date']}"
     generated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     notice = _notice(sel, missing or [])
+    foot = SIGNAL_NOTE if full else ""
     if fmt == "html":
-        return render_html(stocks, commodities, data["date"], generated, suffix, usd, bonds)
-    return render_markdown(stocks, commodities, data["date"], generated, suffix, usd, bonds,
-                           notice=notice, extra=_weekly_md(sel, data, m))
+        return render_html(sections, data["date"], generated, suffix, usd, bonds, footnote=foot,
+                           notice="".join(f'<div class="notice">{x}</div>' for x in _notice([], missing or [])))
+    return render_markdown(sections, data["date"], generated, suffix, usd, bonds,
+                           notice="".join(f"> {x}\n" for x in notice) + ("\n" if notice else ""),
+                           extra=_weekly_md(sel, data, m), footnote=foot)
 
 
 def write_outputs(missing: Optional[List[str]] = None) -> List[str]:

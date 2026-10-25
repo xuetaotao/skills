@@ -11,7 +11,8 @@ from datetime import timedelta
 import pandas as pd
 
 from . import db
-from .config import BIG_MOVE, BOND_TERMS, GAP_DAYS, GROUPS, INST, INSTRUMENTS, MA_PERIOD, MACRO, STALE_DAYS, WEEKS
+from .config import (BIG_MOVE, BOND_TERMS, GAP_DAYS, GROUPS, INST, INSTRUMENTS, MA_PERIOD, MACRO, SIGNALS, STALE_DAYS,
+                     VALUATION, WEEKS)
 
 _cache = {"ver": object()}
 _lock = threading.Lock()
@@ -46,15 +47,37 @@ def _series(rows):
 
 
 def data():
-    """按数据版本缓存：{frames: {代码: 信号表}, raw: {代码: 收盘序列}, macro: {序列: Series}}"""
+    """按数据版本缓存：{frames: {代码: 信号表}, raw: {代码: 收盘序列}, macro: {序列: Series}, val: {代码: [(日期, 估值)]}}"""
     ver = db.get_meta("data_version")
     with _lock:
         if _cache.get("ver") != ver:
             raw = {c: _series(r) for c, r in db.load_prices().items() if c in INST}
             _cache.clear()
             _cache.update(ver=ver, raw=raw, frames={c: signal_frame(s) for c, s in raw.items()},
-                          macro={k: _series(r) for k, r in db.load_macro().items()}, views={})
+                          macro={k: _series(r) for k, r in db.load_macro().items()}, val=db.load_valuation(), views={})
         return _cache
+
+
+def signal(dev):
+    if dev is None:
+        return None
+    return next(label for t, label in SIGNALS if t is None or dev >= t)
+
+
+def valuation(code, D):
+    """不晚于 D、且在 D 之前 7 天内的最近一条估值；回看到开始累积之前的周时没有。"""
+    if code not in VALUATION:
+        return None
+    lo = _ds(D - timedelta(days=7))
+    hit = None
+    for d, v in data()["val"].get(code, []):
+        if lo <= d <= _ds(D):
+            hit = (d, v)
+    if not hit:
+        return None
+    d, v = hit
+    return dict(date=d, ref=VALUATION[code][1], pe=_f(v["pe"], 2), pe_pct=_f(v["pe_pct"], 4), pb=_f(v["pb"], 2),
+                pb_pct=_f(v["pb_pct"], 4))
 
 
 def simple_codes():
@@ -141,6 +164,8 @@ def _row(code, D):
         "ma": _f(last["ma"]),
         "dev": _f(last["dev"]),
         "status": "YES" if last["yes"] else "NO",
+        "signal": signal(_f(last["dev"])),
+        "val": valuation(code, D),
         "since": _ds(since),
         "days": int(len(run)),
         "run_ret": _f(last["close"] / run_base - 1) if run_base else None,
@@ -369,6 +394,15 @@ def health():
                       lag=(D - s.index[-1]).days if D is not None else None,
                       stale=bool(D is not None and (D - s.index[-1]).days > STALE_DAYS))
         macro_items.append(it)
+    info = src.get("VALUATION", {})
+    it = dict(key="VALUATION", name="蛋卷估值（PE / PB 百分位）", source=info.get("source"), ok=info.get("ok"),
+              error=info.get("error"), updated_at=info.get("updated_at"))
+    dates = sorted({x for v in d["val"].values() for x, _ in v})
+    if dates:
+        it.update(rows=sum(len(v) for v in d["val"].values()), first=dates[0], last=dates[-1],
+                  lag=(D - pd.Timestamp(dates[-1])).days if D is not None else None,
+                  stale=bool(D is not None and (D - pd.Timestamp(dates[-1])).days > STALE_DAYS))
+    macro_items.append(it)
     return dict(date=_ds(D), last_refresh=db.get_meta("last_refresh"), failed=db.get_json("last_refresh_failed", []),
                 duration=db.get_meta("last_refresh_seconds"), items=items, macro=macro_items,
                 groups=GROUPS, thresholds=dict(stale=STALE_DAYS, big=BIG_MOVE, gap=GAP_DAYS))

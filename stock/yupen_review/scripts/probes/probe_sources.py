@@ -33,11 +33,12 @@ def main():
         except Exception as e:  # noqa: BLE001
             print(f"{inst['name']:<10} 失败：{type(e).__name__}: {e}")
     if not sys.argv[1:]:
-        for label, fn in (("美元指数", fetchers.fetch_dxy), ("中美国债", lambda: fetchers.fetch_bonds("20260101"))):
+        for label, fn in (("美元指数", fetchers.fetch_dxy), ("中美国债", lambda: fetchers.fetch_bonds("20260101")),
+                          ("蛋卷估值", fetchers.fetch_valuation)):
             t = time.time()
             try:
                 src, data = fn()
-                n = len(data) if isinstance(data, list) else {k: len(v) for k, v in data.items()}
+                n = len(data) if isinstance(data, list) or label == "蛋卷估值" else {k: len(v) for k, v in data.items()}
                 print(f"{label:<10} {src} {n}  {time.time() - t:.1f}s")
             except Exception as e:  # noqa: BLE001
                 print(f"{label:<10} 失败：{type(e).__name__}: {e}")

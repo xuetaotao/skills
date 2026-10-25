@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """数据更新：python -m backend.update
 
-逐个获取指数、商品日线和美元指数、中美国债收益率，增量写入 SQLite；某个来源失败时保留数据库里的旧数据。
-完成后重写 outputs/latest_review(_simple).md/html。有失败项时以退出码 1 结束，便于 AI 工作流判断数据是否可用。
+逐个获取指数、商品、个股日线和美元指数、中美国债收益率、蛋卷估值，增量写入 SQLite；某个来源失败时保留数据库里的旧数据。
+完成后重写 outputs/latest_review(_simple).md/html。行情有失败项时以退出码 1 结束，便于 AI 工作流判断数据是否可用；
+估值只是参考，失败时记在数据健康页，不影响退出码。
 """
 import logging
 import os
@@ -11,7 +12,7 @@ import time
 from datetime import datetime, timedelta
 
 from . import db, fetchers, report
-from .config import HISTORY_START, INSTRUMENTS, INST
+from .config import HISTORY_START, INSTRUMENTS, INST, VALUATION
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ log = logging.getLogger(__name__)
 def run_update(progress=None):
     db.init_db()
     t0 = time.time()
-    steps = [("inst", c) for c, *_ in INSTRUMENTS] + [("dxy", "DXY"), ("bonds", "BONDS"), ("report", None)]
+    steps = [("inst", c) for c, *_ in INSTRUMENTS] + [("dxy", "DXY"), ("bonds", "BONDS"), ("valuation", "VALUATION"),
+                                                    ("report", None)]
     failed, ok = [], 0
 
     def tick(i, label):
@@ -67,6 +69,20 @@ def run_update(progress=None):
             except Exception as e:  # noqa: BLE001
                 db.save_source("BONDS", None, 0, None, None, False, f"{type(e).__name__}: {str(e)[:160]}")
                 failed.append("中美国债收益率")
+        elif kind == "valuation":
+            tick(i, "蛋卷估值")
+            try:
+                source, items = fetchers.fetch_valuation()
+                rows = [(code, v["date"], v["pe"], v["pe_pct"], v["pb"], v["pb_pct"])
+                        for code, (dj, _ref) in VALUATION.items() if (v := items.get(dj))]
+                if not rows:
+                    raise ValueError("蛋卷基金返回的指数里没有清单中的标的")
+                db.save_valuation(rows)
+                dates = sorted(r[1] for r in rows)
+                db.save_source("VALUATION", source, len(rows), dates[0], dates[-1], True)
+            except Exception as e:  # noqa: BLE001
+                db.save_source("VALUATION", None, 0, None, None, False, f"{type(e).__name__}: {str(e)[:160]}")
+                log.warning("蛋卷估值获取失败：%s", e)
         else:
             tick(i, "生成复盘汇总")
             db.set_meta("data_version", str(time.time()))

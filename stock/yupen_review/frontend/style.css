@@ -120,6 +120,13 @@ main { max-width: 1280px; margin: 0 auto; padding: 20px; display: flex; flex-dir
 .st.yes { background: #fbe9e6; color: var(--up); }
 .st.no { background: #e6f4ec; color: var(--down); }
 h1 .st { font-size: 13px; vertical-align: 3px; }
+.sig { display: inline-block; padding: 0 6px; border-radius: 6px; font-size: 11px; line-height: 18px; white-space: nowrap; }
+.sig0 { background: var(--up); color: #fff; }
+.sig1 { background: #fbe9e6; color: var(--up); }
+.sig2 { background: #fff3e2; color: #a3621c; }
+.sig3 { background: #e6f4ec; color: var(--down); }
+.sig4 { background: var(--down); color: #fff; }
+h1 .sig { font-size: 12px; vertical-align: 3px; font-weight: 400; }
 .devbar { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
 .devbar-track { position: relative; width: 56px; height: 6px; border-radius: 3px; background: #eef1f5; }
 .devbar-track::after { content: ""; position: absolute; left: 50%; top: -2px; width: 1px; height: 10px; background: #b9c1cc; }
