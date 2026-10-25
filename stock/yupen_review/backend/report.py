@@ -62,6 +62,7 @@ class Column(NamedTuple):
     header: str
     render_html: Callable[[Dict[str, Any]], str]
     render_md: Callable[[Dict[str, Any]], str]
+    key: str = ""
 
 
 def _badge(record: Dict[str, Any]) -> str:
@@ -108,16 +109,21 @@ def _deviation_html(record: Dict[str, Any]) -> str:
     return f'<span class="{deviation_class(record)}">{record.get("deviation_str", "N/A")}</span>'
 
 
-COL_RANK = Column("排名", lambda r: f'<span class="rank">{r["rank"]}</span>', lambda r: str(r["rank"]))
-COL_MARKET = Column("市场", _market_html, lambda r: r.get("region", ""))
-COL_NAME = Column("名称", _name_html, _name_md)
-COL_CODE = Column("代码", lambda r: f'<code>{r.get("code", "")}</code>', lambda r: f'`{r.get("code", "")}`')
-COL_PRICE = Column("现价", lambda r: fmt_price(r.get("price")), lambda r: fmt_price(r.get("price")))
-COL_CHANGE = Column("涨跌幅", _change_html, lambda r: fmt_change_text(r.get("change")))
-COL_MA = Column("临界值(MA20)", lambda r: fmt_price(r.get("ma20")), lambda r: fmt_price(r.get("ma20")))
-COL_STATUS = Column("状态", _status_html, _status_md)
-COL_DEVIATION = Column("偏离度", _deviation_html, lambda r: r.get("deviation_str", "N/A"))
-COL_CHANGE_DATE = Column("状态转变时间", lambda r: r.get("status_change_date", "") or "--", lambda r: r.get("status_change_date", "") or "--")
+COL_RANK = Column("排名", lambda r: f'<span class="rank">{r["rank"]}</span>', lambda r: str(r["rank"]), "rank")
+COL_MARKET = Column("市场", _market_html, lambda r: r.get("region", ""), "market")
+COL_NAME = Column("名称", _name_html, _name_md, "name")
+COL_CODE = Column("代码", lambda r: f'<code>{r.get("code", "")}</code>', lambda r: f'`{r.get("code", "")}`', "code")
+COL_PRICE = Column("现价", lambda r: fmt_price(r.get("price")), lambda r: fmt_price(r.get("price")), "price")
+COL_CHANGE = Column("涨跌幅", _change_html, lambda r: fmt_change_text(r.get("change")), "chg")
+COL_MA = Column("临界值(MA20)", lambda r: fmt_price(r.get("ma20")), lambda r: fmt_price(r.get("ma20")), "ma")
+COL_STATUS = Column("状态", _status_html, _status_md, "status")
+COL_DEVIATION = Column("偏离度", _deviation_html, lambda r: r.get("deviation_str", "N/A"), "dev")
+COL_CHANGE_DATE = Column("状态转变时间", lambda r: r.get("status_change_date", "") or "--", lambda r: r.get("status_change_date", "") or "--", "since")
+
+# 完整版列多，代码并到名称下面、表头缩短，避免横向滚动
+COL_NAME_CODE = Column("名称", lambda r: f'{_name_html(r)}<code class="code-sub">{r.get("code", "")}</code>',
+                       lambda r: f'{_name_md(r)} `{r.get("code", "")}`', "name")
+COL_SINCE_SHORT = COL_CHANGE_DATE._replace(header="转变日期")
 
 SIGNAL_CLASS = {label: f"sig{i}" for i, (_t, label) in enumerate(SIGNALS)}
 
@@ -138,9 +144,9 @@ def _pe_html(record: Dict[str, Any]) -> str:
     v = record.get("val")
     if not v or not isinstance(v.get("pe_pct"), (int, float)):
         return '<span class="neutral">--</span>'
-    ref = f' <span class="pe-ref">参照{v["ref"]}</span>' if v.get("ref") else ""
-    pe = f'PE {v["pe"]:.1f}' if isinstance(v.get("pe"), (int, float)) else ""
-    return f'<b>{_pe_text(record)}</b> <span class="pe-sub">{pe}</span>{ref}'
+    sub = " · ".join(x for x in (f'PE {v["pe"]:.1f}' if isinstance(v.get("pe"), (int, float)) else "",
+                                  f'参照{v["ref"]}' if v.get("ref") else "") if x)
+    return f'<b>{_pe_text(record)}</b><span class="pe-sub">{sub}</span>'
 
 
 def _pe_md(record: Dict[str, Any]) -> str:
@@ -149,8 +155,8 @@ def _pe_md(record: Dict[str, Any]) -> str:
     return f'{text}（参照{v["ref"]}）' if text != "--" and v.get("ref") else text
 
 
-COL_SIGNAL = Column("信号", _signal_html, lambda r: r.get("signal") or "--")
-COL_PE = Column("PE 百分位", _pe_html, _pe_md)
+COL_SIGNAL = Column("信号", _signal_html, lambda r: r.get("signal") or "--", "signal")
+COL_PE = Column("PE 百分位", _pe_html, _pe_md, "pe")
 
 STOCK_COLUMNS = [COL_RANK, COL_MARKET, COL_NAME, COL_CODE, COL_PRICE, COL_CHANGE, COL_MA, COL_STATUS, COL_DEVIATION, COL_CHANGE_DATE]
 COMMODITY_COLUMNS = [COL_RANK, COL_NAME, COL_CODE, COL_PRICE, COL_CHANGE, COL_MA, COL_STATUS, COL_DEVIATION, COL_CHANGE_DATE]
@@ -161,7 +167,9 @@ def _columns(base: List[Column], full: bool, pe: bool) -> List[Column]:
     if not full:
         return base
     i = base.index(COL_DEVIATION) + 1
-    return base[:i] + [COL_SIGNAL] + ([COL_PE] if pe else []) + base[i:]
+    cols = base[:i] + [COL_SIGNAL] + ([COL_PE] if pe else []) + base[i:]
+    swap = {COL_NAME: COL_NAME_CODE, COL_CHANGE_DATE: COL_SINCE_SHORT}
+    return [swap.get(c, c) for c in cols if c is not COL_CODE]
 
 
 class Section(NamedTuple):
@@ -187,7 +195,8 @@ def _html_table(columns: List[Column], records: List[Dict[str, Any]]) -> str:
     body_rows = []
     for record in records:
         row_class = " class=\"changed-row\"" if record.get("changed_today") or record.get("changed_week") else ""
-        cells = "".join(f"<td>{c.render_html(record)}</td>" for c in columns)
+        cells = "".join(f'<td class="c-{c.key}" data-label="{c.header}"><div class="v">{c.render_html(record)}</div></td>'
+                        for c in columns)
         body_rows.append(f"<tr{row_class}>{cells}</tr>")
     if not body_rows:
         body_rows.append(f'<tr><td colspan="{len(columns)}" class="empty">暂无数据</td></tr>')
@@ -251,7 +260,7 @@ def _macro_html(usd: Optional[Dict[str, Any]], bonds: Optional[Dict[str, Any]]) 
 
 def render_html(sections: List[Section], data_date: str, generated_at: str, title_suffix: str = "",
                 usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None, footnote: str = "",
-                notice: str = "") -> str:
+                notice: str = "", wide: bool = False) -> str:
     cards = "".join(
         f'<div class="card"><h2>{s.title}</h2>{f"<p class=note>{s.note}</p>" if s.note else ""}'
         f'<div class="table-scroll">{_html_table(s.columns, s.records)}</div></div>'
@@ -329,9 +338,50 @@ code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13
 .pe-sub, .pe-ref {{ font-size: 12px; color: #999; }}
 .footnote {{ margin-top: 18px; font-size: 13px; color: #777; line-height: 1.7; }}
 .footer {{ margin-top: 22px; text-align: center; color: #999; font-size: 12px; }}
+body.wide .container {{ max-width: 1440px; }}
+body.wide .review-table thead th, body.wide .review-table tbody td {{ padding: 11px 9px; }}
+.code-sub {{ display: block; width: max-content; margin-top: 4px; font-size: 11px; padding: 1px 6px; }}
+.pe-sub {{ display: block; margin-top: 2px; }}
+@media (max-width: 1200px) {{
+  body {{ padding: 16px; }}
+  .card {{ padding: 20px 18px; }}
+  .review-table {{ font-size: 13px; }}
+  .review-table thead th, .review-table tbody td, body.wide .review-table thead th, body.wide .review-table tbody td {{ padding: 10px 6px; }}
+}}
+/* 手机和平板：每行一张卡片，不用左右拖动 */
+@media (min-width: 561px) and (max-width: 900px) {{
+  .review-table:not(.bond-table) tbody tr {{ grid-template-columns: repeat(3, 1fr) !important; }}
+}}
+@media (max-width: 900px) {{
+  body {{ padding: 12px; }}
+  .page-header {{ padding: 20px; border-radius: 16px; }}
+  .page-header h1 {{ font-size: 20px; }}
+  .card {{ padding: 16px 14px; border-radius: 14px; }}
+  .review-table:not(.bond-table), .review-table:not(.bond-table) tbody {{ display: block; }}
+  .review-table:not(.bond-table) thead {{ display: none; }}
+  .review-table:not(.bond-table) tbody tr {{ position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 16px;
+    padding: 12px 14px; margin-bottom: 10px; border: 1px solid #ecebf3; border-radius: 12px; background: #fff; }}
+  .review-table:not(.bond-table) tbody tr.changed-row {{ background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border: 2px solid #ff9800; }}
+  .review-table:not(.bond-table) tbody td, body.wide .review-table:not(.bond-table) tbody td {{ display: flex; justify-content: space-between;
+    align-items: center; gap: 8px; padding: 0; background: none !important; border: none !important; box-shadow: none !important; font-size: 13px; }}
+  .review-table:not(.bond-table) tbody td::before {{ content: attr(data-label); color: #999; font-size: 12px; }}
+  .review-table:not(.bond-table) tbody td .v {{ text-align: right; }}
+  .review-table:not(.bond-table) tbody td.c-name {{ order: -1; grid-column: 1 / -1; padding-right: 44px; font-size: 15px; }}
+  .review-table:not(.bond-table) tbody td.c-pe {{ order: 10; grid-column: 1 / -1; }}
+  .review-table:not(.bond-table) tbody td.c-pe .pe-sub {{ display: inline; margin-left: 6px; }}
+  .review-table:not(.bond-table) tbody td.c-name .v {{ text-align: left; white-space: normal; }}
+  .review-table:not(.bond-table) tbody td.c-name::before, .review-table:not(.bond-table) tbody td.c-rank::before {{ display: none; }}
+  .review-table:not(.bond-table) tbody td.c-rank {{ position: absolute; top: 12px; right: 14px; }}
+  .review-table:not(.bond-table) tbody td.c-pe .v {{ white-space: normal; }}
+  .review-table:not(.bond-table) tbody td.empty {{ display: block; text-align: center; }}
+  .review-table:not(.bond-table) tbody td.empty::before {{ display: none; }}
+  .code-sub {{ display: inline-block; margin: 0 0 0 6px; vertical-align: 1px; }}
+  .change-badge, .stale-badge {{ margin-left: 6px; }}
+  .usd-value {{ font-size: 36px; }}
+}}
 </style>
 </head>
-<body>
+<body class="{"wide" if wide else ""}">
 <div class="container">
   <div class="page-header">
     <h1>{title}</h1>
@@ -512,7 +562,7 @@ def build(version: str = "simple", fmt: str = "md", asof: Optional[str] = None, 
     notice = _notice(sel, missing or [])
     foot = SIGNAL_NOTE if full else ""
     if fmt == "html":
-        return render_html(sections, data["date"], generated, suffix, usd, bonds, footnote=foot,
+        return render_html(sections, data["date"], generated, suffix, usd, bonds, footnote=foot, wide=full,
                            notice="".join(f'<div class="notice">{x}</div>' for x in _notice([], missing or [])))
     return render_markdown(sections, data["date"], generated, suffix, usd, bonds,
                            notice="".join(f"> {x}\n" for x in notice) + ("\n" if notice else ""),
