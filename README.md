@@ -16,18 +16,18 @@ AI驱动的个人工具集，基于大语言模型开发各种自动化工具和
 
 详情见 [yupen/README.md](yupen/README.md)
 
-### stock/review
+### stock/yupen_review
 
-**鱼盆模型周度复盘** - 基于 yupen 最新行情汇总和财经新闻，生成周度复盘正文。
+**鱼盆模型周度复盘** - 本地网站跟踪全球股指、大宗商品的鱼盆状态和美元、中美国债，为 AI 生成周度复盘正文提供素材（端口 8325）。
 
 如果在仓库根目录直接对 AI 说：
 
 - `帮我生成一下鱼盆模型周度复盘`
 - `基于最新 review 输出，生成本周鱼盆模型周度复盘`
 
-AI 应先阅读 [stock/review/README.md](stock/review/README.md)，再按其中的“交给 AI 生成周度复盘正文”流程执行：先按当前操作系统刷新行情汇总，读取 `stock/review/review_preferences.md`，再使用 `stock/review/outputs/latest_review_simple.md` 生成正文。
+AI 应按 [stock/yupen_review/prompts/鱼盆模型周度复盘模版.md](stock/yupen_review/prompts/鱼盆模型周度复盘模版.md) 开头注释里的步骤执行，写作和新闻规则以 `stock/yupen_review/prompts/review_preferences.md` 为准。
 
-详情见 [stock/review/README.md](stock/review/README.md)
+详情见 [stock/yupen_review/README.md](stock/yupen_review/README.md)
 
 ## 开发说明
 

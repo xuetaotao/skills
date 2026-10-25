@@ -1,9 +1,18 @@
-"""HTML / Markdown 渲染
+# -*- coding: utf-8 -*-
+"""行情复盘汇总：截图版 HTML 与 AI 素材 Markdown
 
-把分组好的行情数据渲染成行情复盘汇总，风格沿用 yupen 报告的配色与卡片感。
+HTML 风格沿用原 review 模块（周报截图用），Markdown 在原有三张表之后追加“本周变化”和“近几周偏离度”，
+供 AI 写周报时做增量对比，不必再翻历史文件。
 """
-
+import os
+from datetime import datetime
 from typing import Any, Callable, Dict, List, NamedTuple, Optional
+
+from . import analytics
+from .config import INST
+
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUTS = os.path.join(BASE, "outputs")
 
 # 内联国旗 SVG（取自 yupen 报告，解决部分系统不渲染国旗 emoji 的问题）
 FLAG_SVGS: Dict[str, str] = {
@@ -54,14 +63,25 @@ class Column(NamedTuple):
     render_md: Callable[[Dict[str, Any]], str]
 
 
+def _badge(record: Dict[str, Any]) -> str:
+    if record.get("changed_today"):
+        return "⚡今日转变"
+    if record.get("changed_week"):
+        return "🔄本周转变"
+    return ""
+
+
 def _name_html(record: Dict[str, Any]) -> str:
-    badge = '<span class="change-badge">⚡今日转变</span>' if record.get("changed_today") else ""
-    return f'<span class="idx-name">{record["name"]}</span>{badge}'
+    b = _badge(record)
+    badge = f'<span class="change-badge{" week" if b.startswith("🔄") else ""}">{b}</span>' if b else ""
+    stale = f'<span class="stale-badge">数据截至 {record["status_date"][5:]}</span>' if record.get("stale") else ""
+    return f'<span class="idx-name">{record["name"]}</span>{badge}{stale}'
 
 
 def _name_md(record: Dict[str, Any]) -> str:
-    suffix = " ⚡今日转变" if record.get("changed_today") else ""
-    return f'{record["name"]}{suffix}'
+    b = _badge(record)
+    stale = f" ⚠️数据截至{record['status_date']}" if record.get("stale") else ""
+    return f'{record["name"]}{" " + b if b else ""}{stale}'
 
 
 def _market_html(record: Dict[str, Any]) -> str:
@@ -71,8 +91,8 @@ def _market_html(record: Dict[str, Any]) -> str:
 
 def _status_html(record: Dict[str, Any]) -> str:
     if record.get("status") == "YES":
-        return '<span class="status status-yes">✅ YES</span>'
-    return '<span class="status status-no">❌ NO</span>'
+        return '<span class="status status-yes">YES</span>'
+    return '<span class="status status-no">NO</span>'
 
 
 def _status_md(record: Dict[str, Any]) -> str:
@@ -114,7 +134,7 @@ def _html_table(columns: List[Column], records: List[Dict[str, Any]]) -> str:
     head = "".join(f"<th>{c.header}</th>" for c in columns)
     body_rows = []
     for record in records:
-        row_class = " class=\"changed-row\"" if record.get("changed_today") else ""
+        row_class = " class=\"changed-row\"" if record.get("changed_today") or record.get("changed_week") else ""
         cells = "".join(f"<td>{c.render_html(record)}</td>" for c in columns)
         body_rows.append(f"<tr{row_class}>{cells}</tr>")
     if not body_rows:
@@ -218,12 +238,14 @@ body {{ font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif
 .idx-name {{ font-weight: 600; }}
 code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13px; color: #5a4ea2; }}
 .status {{ padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 13px; }}
-.status-yes {{ background: #e8f5e9; color: #2e7d32; }}
-.status-no {{ background: #ffebee; color: #c62828; }}
-.positive {{ color: #2e7d32; font-weight: 600; }}
-.negative {{ color: #c62828; font-weight: 600; }}
+.status-yes {{ background: #ffebee; color: #c62828; }}
+.status-no {{ background: #e8f5e9; color: #2e7d32; }}
+.positive {{ color: #c62828; font-weight: 600; }}
+.negative {{ color: #2e7d32; font-weight: 600; }}
 .neutral {{ color: #757575; }}
 .change-badge {{ display: inline-block; margin-left: 8px; padding: 2px 8px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: #fff; font-size: 12px; border-radius: 10px; font-weight: 700; }}
+.change-badge.week {{ background: linear-gradient(135deg, #ffb74d 0%, #ff9800 100%); }}
+.stale-badge {{ display: inline-block; margin-left: 8px; padding: 2px 8px; background: #eceff1; color: #78909c; font-size: 12px; border-radius: 10px; }}
 .empty {{ text-align: center; color: #999; padding: 24px; }}
 .macro-grid {{ display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; }}
 .macro-block {{ display: flex; flex-direction: column; }}
@@ -236,8 +258,8 @@ code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13
 .usd-card {{ flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; background: #fff; border: 1px solid #ebe8f6; border-radius: 12px; padding: 24px; box-shadow: 0 4px 14px rgba(102,126,234,0.08); }}
 .usd-value {{ font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: 0.5px; color: #4a3f86; font-variant-numeric: tabular-nums; }}
 .usd-change {{ font-size: 15px; font-weight: 700; padding: 4px 14px; border-radius: 20px; }}
-.usd-change.positive {{ color: #2e7d32; background: #e8f5e9; }}
-.usd-change.negative {{ color: #c62828; background: #ffebee; }}
+.usd-change.positive {{ color: #c62828; background: #ffebee; }}
+.usd-change.negative {{ color: #2e7d32; background: #e8f5e9; }}
 .usd-change.positive::before {{ content: "▲ "; }}
 .usd-change.negative::before {{ content: "▼ "; }}
 .usd-cap {{ font-size: 12px; color: #9a96b0; }}
@@ -259,7 +281,7 @@ code {{ background: #f3f4fa; padding: 2px 7px; border-radius: 5px; font-size: 13
     <div class="table-scroll">{commodity_table}</div>
   </div>
   {macro_section}
-  <div class="footer">数据来源：鱼盆模型量化分析系统 / akshare / 东方财富 · 本汇总仅供参考，不构成投资建议</div>
+  <div class="footer">数据来源：新浪财经 / 中证指数 / 台湾证交所 / 东方财富 / akshare · 鱼盆信号按 20 日均线计算 · 本汇总仅供参考，不构成投资建议</div>
 </div>
 </body>
 </html>"""
@@ -297,15 +319,148 @@ def _macro_md(usd: Optional[Dict[str, Any]], bonds: Optional[Dict[str, Any]]) ->
 
 def render_markdown(stocks: List[Dict[str, Any]], commodities: List[Dict[str, Any]],
                     data_date: str, generated_at: str, title_suffix: str = "",
-                    usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None) -> str:
+                    usd: Optional[Dict[str, Any]] = None, bonds: Optional[Dict[str, Any]] = None,
+                    notice: str = "", extra: str = "") -> str:
     return (
         f"# 🌍 全球行情复盘汇总{title_suffix}\n\n"
         f"> 数据日期：{data_date} · 生成时间：{generated_at} · 排序：按偏离度由强到弱\n\n"
+        f"{notice}"
         "## 📊 全球股市\n\n"
         f"{_md_table(STOCK_COLUMNS, stocks)}\n\n"
         "## 🏅 大宗商品\n\n"
         f"{_md_table(COMMODITY_COLUMNS, commodities)}\n\n"
         f"{_macro_md(usd, bonds)}"
+        f"{extra}"
         "---\n\n"
-        "数据来源：鱼盆模型量化分析系统 / akshare / 东方财富 · 本汇总仅供参考，不构成投资建议\n"
+        "数据来源：新浪财经 / 中证指数 / 台湾证交所 / 东方财富 / akshare · 鱼盆信号由本模块按 20 日均线计算 · 本汇总仅供参考，不构成投资建议\n"
     )
+
+
+# ----------------------------- 从分析结果组装 ----------------------------- #
+
+def _pct(v, d=2):
+    return f"{v * 100:+.{d}f}%" if isinstance(v, (int, float)) else "--"
+
+
+def _record(r: Dict[str, Any]) -> Dict[str, Any]:
+    return dict(
+        name=r["name"], code=r["code"], region=r["region"], flag=r["flag"], price=r.get("price"), change=r.get("chg"),
+        ma20=r.get("ma"), status=r.get("status"), deviation=r.get("dev"),
+        deviation_str=f"{r['dev'] * 100:.2f}%" if isinstance(r.get("dev"), (int, float)) else "N/A",
+        status_change_date=r.get("since"), changed_today=r.get("changed_today"), changed_week=r.get("changed_week"),
+        stale=r.get("stale"), status_date=r.get("date"),
+    )
+
+
+def _ranked(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    out = sorted((_record(r) for r in rows), key=lambda x: x["deviation"] if isinstance(x["deviation"], (int, float)) else float("-inf"),
+                 reverse=True)
+    for i, x in enumerate(out, 1):
+        x["rank"] = i
+    return out
+
+
+def pick(version: str, asof: Optional[str] = None):
+    """按版本筛选：返回 (分析结果, 选中的行)。"""
+    data = analytics.rows(asof)
+    if not data:
+        return None, []
+    codes = set(analytics.simple_codes()) if version == "simple" else set(INST)
+    return data, [r for r in data["rows"] if r["code"] in codes and not r.get("nodata")]
+
+
+def _macro_parts(asof):
+    m = analytics.macro(asof)
+    if not m:
+        return None, None, m
+    usd = None
+    if m.get("dxy"):
+        usd = dict(price=m["dxy"]["price"], change=m["dxy"]["chg"])
+    bonds = dict(rows=[dict(term=b["term"], cn=b.get("cn"), us=b.get("us")) for b in m["bonds"]]) if m.get("bonds") else None
+    return usd, bonds, m
+
+
+def _notice(sel: List[Dict[str, Any]], missing: List[str]) -> str:
+    stale = [f"{r['name']}（{r['date']}）" for r in sel if r.get("stale")]
+    lines = []
+    if stale:
+        lines.append(f"> ⚠️ 以下标的数据没有更新到最新，可能是休市或取数失败：{'、'.join(stale)}")
+    if missing:
+        lines.append(f"> ⚠️ 本次刷新失败：{'、'.join(missing)}；表中为数据库里的旧数据")
+    return "\n".join(lines) + "\n\n" if lines else ""
+
+
+def _bp(v):
+    return f"{v:+.0f}bp" if isinstance(v, (int, float)) else "--"
+
+
+def _weekly_md(sel: List[Dict[str, Any]], data: Dict[str, Any], m: Dict[str, Any]) -> str:
+    order = {c: i for i, c in enumerate(INST)}
+    sel = sorted(sel, key=lambda r: order[r["code"]])
+    out = [f"## 📅 本周变化（{data['week_start']} ~ {data['date']}）\n",
+           "> 本周涨跌 = 本周最后一个交易日收盘 ÷ 上周最后一个交易日收盘 − 1，与上面表格里的当日涨跌不同。\n",
+           "| 市场 | 名称 | 本周涨跌 | 近1月 | 上周末 → 本周状态 | 上周末 → 本周偏离度 | 当前状态持续 |",
+           "| --- | --- | --- | --- | --- | --- | --- |"]
+    st = {"YES": "✅", "NO": "❌", None: "--"}
+    for r in sel:
+        wk = "本周休市" if r.get("idle_week") else _pct(r.get("wtd"))
+        flip = " 🔄" if r.get("changed_week") else ""
+        out.append(f"| {r['region']} | {r['name']} | {wk} | {_pct(r.get('m1'))} | {st[r.get('prev_status')]} → {st[r.get('status')]}{flip} | "
+                   f"{_pct(r.get('prev_dev'))} → {_pct(r.get('dev'))} | {r.get('days')} 个交易日（自 {r.get('since')}） |")
+    up = [r["name"] for r in sel if r.get("changed_week") and r["status"] == "YES"]
+    down = [r["name"] for r in sel if r.get("changed_week") and r["status"] == "NO"]
+    whip = [r["name"] for r in sel if len(r.get("week_flips") or []) >= 2]
+    out.append("")
+    out.append(f"- 本周转为 YES：{'、'.join(up) or '无'}")
+    out.append(f"- 本周转为 NO：{'、'.join(down) or '无'}")
+    if whip:
+        out.append(f"- 本周来回切换（临界值附近反复）：{'、'.join(whip)}")
+    if m and m.get("dxy"):
+        x = m["dxy"]
+        out.append(f"- 美元指数：{x['price']:.2f}，本周 {_pct(x.get('wtd'))}，近1月 {_pct(x.get('m1'))}，"
+                   f"{'高于' if x['status'] == 'YES' else '低于'} 20 日均线 {x['ma']:.2f}")
+    if m and m.get("bonds"):
+        parts = []
+        for b in m["bonds"]:
+            if b["term"] in ("2年", "10年", "30年"):
+                parts.append(f"{b['term']} 中国 {b.get('cn', 0):.2f}%（本周 {_bp(b.get('cn_wtd'))}）/ 美国 {b.get('us', 0):.2f}%（本周 {_bp(b.get('us_wtd'))}）")
+        out.append("- 国债收益率：" + "；".join(parts))
+        ten = next((b for b in m["bonds"] if b["term"] == "10年"), None)
+        if ten and ten.get("spread") is not None:
+            out.append(f"- 中美 10 年期利差 {ten['spread']:+.0f}bp；美国 10年−2年 {_bp(m.get('us_curve'))}，中国 10年−2年 {_bp(m.get('cn_curve'))}")
+    out.append("")
+    return "\n".join(out) + "\n"
+
+
+def build(version: str = "simple", fmt: str = "md", asof: Optional[str] = None, missing: Optional[List[str]] = None) -> Optional[str]:
+    data, sel = pick(version, asof)
+    if not data:
+        return None
+    stocks = _ranked([r for r in sel if r["kind"] == "stock"])
+    commodities = _ranked([r for r in sel if r["kind"] == "commodity"])
+    usd, bonds, m = _macro_parts(asof)
+    suffix = "（精简版）" if version == "simple" else ""
+    if asof:
+        suffix += f" · 回看 {data['date']}"
+    generated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    notice = _notice(sel, missing or [])
+    if fmt == "html":
+        return render_html(stocks, commodities, data["date"], generated, suffix, usd, bonds)
+    return render_markdown(stocks, commodities, data["date"], generated, suffix, usd, bonds,
+                           notice=notice, extra=_weekly_md(sel, data, m))
+
+
+def write_outputs(missing: Optional[List[str]] = None) -> List[str]:
+    """刷新后写 outputs/latest_review(_simple).md/html，AI 周报流程读取这些文件。"""
+    os.makedirs(OUTPUTS, exist_ok=True)
+    written = []
+    for version, stem in (("full", "latest_review"), ("simple", "latest_review_simple")):
+        for fmt in ("md", "html"):
+            text = build(version, fmt, missing=missing)
+            if text is None:
+                continue
+            path = os.path.join(OUTPUTS, f"{stem}.{fmt}")
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+            written.append(path)
+    return written

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鱼盆复盘</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e9f0fd'/%3E%3Cpath d='M4 20c5-9 9 2 14-6s7-4 10-6' stroke='%232f6fdb' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3Cpath d='M4 17h24' stroke='%23e0862f' stroke-width='1.6' stroke-dasharray='3 2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css?v=2">
+<script src="/static/vendor/echarts.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#/"><span class="brand-mark wave"><svg viewBox="0 0 24 18"><path d="M1 13c4-7 7 2 11-4s6-3 11-5"/><path class="ma" d="M1 10h22"/></svg></span>鱼盆复盘</a>
+    <nav id="nav"></nav>
+    <div class="topbar-right">
+      <a id="statusPill" class="status-pill" href="#/health" title="数据健康">连接中…</a>
+      <button id="btnRefresh" class="btn" title="重新获取全部指数、商品、美元指数和国债收益率，并重写 outputs 下的复盘汇总">刷新数据</button>
+      <button id="btnGuide" class="btn icon" title="使用指引">?</button>
+    </div>
+  </div>
+  <div id="progress" class="progress" hidden><i></i></div>
+</header>
+<main id="app"><div class="loading">加载中…</div></main>
+<footer class="foot">
+  数据来源：新浪财经（A股、港股、美股、全球指数、外盘期货、美元指数）、中证指数（中证2000、双创50）、台湾证交所（台湾加权指数）、东方财富（中美国债收益率，经 akshare）· 鱼盆信号按 20 日均线在本地计算 · 仅供个人研究参考，不构成投资建议
+</footer>
+<div id="tip" class="tip" hidden></div>
+<div id="toasts" class="toasts"></div>
+<div id="modal" class="modal" hidden></div>
+<script src="/static/app.js?v=4"></script>
+</body>
+</html>
