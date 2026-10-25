@@ -1,0 +1,6 @@
+akshare>=1.14
+pandas
+requests
+xlrd
+fastapi>=0.100
+uvicorn

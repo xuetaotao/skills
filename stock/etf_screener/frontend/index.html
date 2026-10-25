@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETF 规模筛选</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23e9f0fd'/%3E%3Cpath d='M16 3a13 13 0 0 1 13 13H16z' fill='%232f6fdb'/%3E%3Cpath d='M29 16a13 13 0 0 1-8 12L16 16z' fill='%23e0862f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css?v=4">
+<script src="/static/vendor/echarts.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#/"><span class="brand-mark bars"><i></i><i></i><i></i></span>ETF 规模筛选</a>
+    <nav id="nav"></nav>
+    <div class="topbar-right">
+      <a id="statusPill" class="status-pill" href="#/health" title="数据健康">连接中…</a>
+      <button id="btnRefresh" class="btn" title="重新获取交易所 ETF 列表、份额和最新价格">刷新数据</button>
+      <button id="btnGuide" class="btn icon" title="使用指引">?</button>
+    </div>
+  </div>
+  <div id="progress" class="progress" hidden><i></i></div>
+</header>
+<main id="app"><div class="loading">加载中…</div></main>
+<footer class="foot">
+  数据来源：上海证券交易所、深圳证券交易所（ETF 列表与份额）、新浪财经（价格）、腾讯行情（交叉核对）、中证指数（指数名称、类别、估值）、国证指数（指数名称、类别）、东方财富（区间收益、黄金 ETF 跟踪标的）、乐咕乐股（深证系列估值）· 仅供个人研究参考，不构成投资建议
+</footer>
+<div id="tip" class="tip" hidden></div>
+<div id="toasts" class="toasts"></div>
+<div id="modal" class="modal" hidden></div>
+<script src="/static/app.js?v=5"></script>
+</body>
+</html>
