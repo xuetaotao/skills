@@ -18,7 +18,7 @@ scripts\start_server.bat
 
 已经有 `data/raw/` 原始快照（例如从旧电脑同步过来）时，不抓也能直接点「用已有快照分析」。
 
-Python 解释器按以下顺序查找：项目下的 `.venv` → WorkBuddy 自带环境 → 系统 PATH 中的 `python`。缺少依赖时脚本会提示安装命令：
+启动脚本使用项目下的 `.venv`。还没有这个目录时，用 PATH 上的 `python` 创建它，安装 `requirements.txt`，并安装 Playwright 的 Chromium，之后一直用这个环境。已有 `.venv` 但缺少依赖时，脚本会提示安装命令：
 
 ```bash
 python -m venv .venv

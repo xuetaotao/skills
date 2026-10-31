@@ -14,7 +14,7 @@
 scripts\start_server.bat
 ```
 
-脚本会启动服务并自动打开 <http://127.0.0.1:8331>。只依赖 `fastapi` 和 `uvicorn`，缺少时脚本会提示安装命令：
+脚本会启动服务并自动打开 <http://127.0.0.1:8331>。只依赖 `fastapi` 和 `uvicorn`。还没有 `.venv` 时，脚本用 PATH 上的 `python` 创建并安装依赖；已有环境但缺少依赖时，会提示安装命令：
 
 ```bash
 python -m venv .venv

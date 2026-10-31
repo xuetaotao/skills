@@ -15,7 +15,7 @@ scripts\start_server.bat
 
 脚本会启动服务并自动打开 <http://127.0.0.1:8322>。首次运行需要下载近 20 年的数据，大约 3–5 分钟（中国银行汇率接口较慢），页面会显示进度，完成后自动刷新。之后每次启动都会在后台增量更新（不影响浏览旧数据），运行期间可随时点右上角「刷新数据」。
 
-Python 解释器按以下顺序查找：项目下的 `.venv` → WorkBuddy 自带环境 → 系统 PATH 中的 `python`。缺少依赖时脚本会提示安装命令：
+启动脚本使用项目下的 `.venv`。还没有这个目录时，用 PATH 上的 `python` 创建它并安装 `requirements.txt`，之后一直用这个环境。已有 `.venv` 但缺少依赖时，脚本会提示安装命令：
 
 ```bash
 pip install -r requirements.txt

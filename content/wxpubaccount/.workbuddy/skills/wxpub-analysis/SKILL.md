@@ -5,7 +5,7 @@ description: 微信公众平台数据抓取 + 阅读/涨粉分析 + 选题推荐
 
 # 公众号数据分析（「一点财知」）
 
-代码在 `content/wxpubaccount/backend/`，下面的命令都在 `content/wxpubaccount/` 目录执行，解释器优先用项目下的 `.venv\Scripts\python.exe`（没有就用 `python`）。完整说明见 [README](../../../README.md)；通用成稿流程见 [写作工作流](../../../../writing/WorkFlow.md)，跨目录写入仍需用户授权。
+代码在 `content/wxpubaccount/backend/`，下面的命令都在 `content/wxpubaccount/` 目录执行，解释器使用项目下的 `.venv\Scripts\python.exe`。还没有 `.venv` 时，先用 PATH 上的 `python` 创建并安装 `requirements.txt`，再使用这个环境。完整说明见 [README](../../../README.md)；通用成稿流程见 [写作工作流](../../../../writing/WorkFlow.md)，跨目录写入仍需用户授权。
 
 用户更习惯网页时，直接让他双击 `scripts\start_server.bat`（<http://127.0.0.1:8332>），下面每一步网页上都有对应按钮。
 

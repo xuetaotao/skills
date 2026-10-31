@@ -20,7 +20,7 @@
 
 页面必须通过上面的地址访问，直接双击 `frontend/index.html` 取不到数据。
 
-启动脚本按以下顺序查找 Python：项目内的 `.venv`、WorkBuddy 自带环境（`%USERPROFILE%\.workbuddy\...`），最后是 PATH 上的 `python`。如果所选环境缺少依赖，脚本会提示安装命令。
+启动脚本使用项目内的 `.venv`。还没有时，用 PATH 上的 `python` 创建并安装依赖。已有环境但缺少依赖时，脚本会提示安装命令。
 
 ## 页面
 
