@@ -1,0 +1,19 @@
+# 公众号分析工作空间：本地数据与产物不提交
+
+# 原始快照 / 清洗数据 / 选题推荐 / 浏览器登录态（data/raw 是历史证据，需另外备份）
+data/
+
+# HTML 报告，可由原始快照重建
+reports/
+
+# 旧版的会话 token（已不再使用）
+token.txt
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 放行给 AI 助手的技能说明（其余 .workbuddy 内容仍按根 .gitignore 的 **/.workbuddy/** 忽略）
+!.workbuddy/skills/
+!.workbuddy/skills/**

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公众号数据分析</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e9f6ef'/%3E%3Cpath d='M7 23V13M13 23V8M19 23v-7M25 23V11' stroke='%2318935a' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css?v=1">
+<script src="/static/vendor/echarts.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#/"><span class="brand-mark mp"><svg viewBox="0 0 16 16"><path d="M3 13V8M6.5 13V4M10 13V9M13.5 13V6"/></svg></span><span id="brandName">公众号数据分析</span></a>
+    <nav id="nav"></nav>
+    <div class="topbar-right">
+      <a id="statusPill" class="status-pill" href="#/scrape" title="数据抓取">连接中…</a>
+      <button id="btnScrape" class="btn" title="扫码登录公众号后台，抓取最新的发表记录、总览和详情页，然后重新分析">抓取最新数据</button>
+      <button id="btnGuide" class="btn icon" title="使用指引">?</button>
+    </div>
+  </div>
+  <div id="progress" class="progress" hidden><i></i></div>
+</header>
+<main id="app"><div class="loading">加载中…</div></main>
+<footer class="foot">
+  数据来源：微信公众平台后台（发表记录 / 用户分析 / 内容分析 / 单篇详情页），本地抓取与分析，不上传任何数据 · 评分与推荐只是参考，选题和定稿由你决定
+</footer>
+<div id="tip" class="tip" hidden></div>
+<div id="toasts" class="toasts"></div>
+<div id="modal" class="modal" hidden></div>
+<script src="/static/app.js?v=1"></script>
+</body>
+</html>

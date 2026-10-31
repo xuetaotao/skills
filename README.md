@@ -25,6 +25,15 @@ AI 应按 [stock/yupen_review/prompts/鱼盆模型周度复盘模版.md](stock/y
 - [downloader/video](downloader/video/README.md)：基于 yt-dlp 下载视频或音频，内置抖音（无水印）、MacCMS 影视站、RouVideo 专用下载器和支持加密与续传的 m3u8 下载器
 - [downloader/wxarticle](downloader/wxarticle/README.md)：用 Playwright 把微信公众号文章保存成 PDF 和正文长截图，可一次粘贴多篇，打不开的文章（隐私设置、已删除、环境异常）直接报出原因
 
+### content
+
+**内容创作与公众号运营**，两个本地小网站，目录结构和 stock、downloader 下的项目一致（`backend/` 逻辑、`frontend/` 界面、`scripts/` 启动脚本），各自带 `.venv`。按「复盘与选题 → 观点成稿 → 人工发表 → 数据反馈」串联，两个工作空间保持独立。
+
+- [content/writing](content/writing/README.md)：写作工作台（端口 8331）。按阶段（观点拓展 / 初稿 / 修改反馈 / 质量检查）拼好完整 Prompt 一键复制，文章库保存每一版并逐段对比，本地自检 AI 腔、绝对化表述和需要查证的句子，借公众号的爆款预测器给标题打分
+- [content/wxpubaccount](content/wxpubaccount/README.md)：「一点财知」公众号数据分析（端口 8332）。Playwright 扫码登录后台（登录态保存，免重复扫码）抓发表记录、总览和详情页，看阅读、涨粉、互动和读者画像，标题评分、选题推荐，生成 HTML 创作指引报告
+
+统一入口见 [content/README.md](content/README.md)。从仓库根目录发起写作或公众号运营任务时，AI 应先阅读该入口，再按对应子项目的工作流或技能执行。
+
 ## 开发说明
 
 所有项目均为 AI Coding 实验，探索如何利用大语言模型自动完成从想法到实现的完整流程。

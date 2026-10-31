@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>写作工作台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f1ebfb'/%3E%3Cpath d='M9 23l2-6 9-9 4 4-9 9z M18 10l4 4' stroke='%237a4fc4' stroke-width='2.4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css?v=1">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#/"><span class="brand-mark pen"><svg viewBox="0 0 16 16"><path d="M3 13l1-3 6.5-6.5 2 2L6 12z M9.5 4.5l2 2"/></svg></span>写作工作台</a>
+    <nav id="nav"></nav>
+    <div class="topbar-right">
+      <button id="btnNew" class="btn primary">新建文章</button>
+      <button id="btnGuide" class="btn icon" title="使用指引">?</button>
+    </div>
+  </div>
+</header>
+<main id="app"><div class="loading">加载中…</div></main>
+<footer class="foot">
+  我提供主题、想法、判断和最终取舍；AI 负责拓展、组织、成文、审稿和表达优化 · 文章只保存在本地 articles/ 目录，不会上传
+</footer>
+<div id="toasts" class="toasts"></div>
+<div id="modal" class="modal" hidden></div>
+<script src="/static/app.js?v=1"></script>
+</body>
+</html>
