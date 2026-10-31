@@ -34,6 +34,12 @@ AI 应按 [stock/yupen_review/prompts/鱼盆模型周度复盘模版.md](stock/y
 
 统一入口见 [content/README.md](content/README.md)。从仓库根目录发起写作或公众号运营任务时，AI 应先阅读该入口，再按对应子项目的工作流或技能执行。
 
+### credit_card
+
+**卡包记**，信用卡年费管理微信小程序（MVP，纯本地版）。记录银行、卡种、启卡日期、年费和减免条件，按年费周期计算剩余天数和达标进度；打开时仪表盘高亮 30 天内临期且未达标的卡。数据只存在手机本地 `wx.storage`，不使用云开发。用微信开发者工具导入本目录，后端服务选「不使用云服务」即可预览。
+
+详情见 [credit_card/README.md](credit_card/README.md)
+
 ## 开发说明
 
 所有项目均为 AI Coding 实验，探索如何利用大语言模型自动完成从想法到实现的完整流程。
